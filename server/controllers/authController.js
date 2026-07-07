@@ -23,12 +23,8 @@ const ACCESS_COOKIE_OPTIONS = {
 exports.register = catchAsync(async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-<<<<<<< HEAD
-    return res.status(400).json({ success: false, errors: errors.array() });
-=======
     const errorMsg = errors.array()[0].msg || "Validation failed.";
     return res.status(400).json({ success: false, message: errorMsg, errors: errors.array() });
->>>>>>> origin/main
   }
 
   const { name, email, password } = req.body;
@@ -68,12 +64,8 @@ exports.register = catchAsync(async (req, res, next) => {
 exports.login = catchAsync(async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-<<<<<<< HEAD
-    return res.status(400).json({ success: false, errors: errors.array() });
-=======
     const errorMsg = errors.array()[0].msg || "Validation failed.";
     return res.status(400).json({ success: false, message: errorMsg, errors: errors.array() });
->>>>>>> origin/main
   }
 
   const { email, password } = req.body;

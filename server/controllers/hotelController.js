@@ -67,14 +67,10 @@ exports.getHotelById = catchAsync(async (req, res, next) => {
 // ── POST /api/hotels (admin) ──────────────────────────────────────
 exports.createHotel = catchAsync(async (req, res, next) => {
   const errors = validationResult(req);
-<<<<<<< HEAD
-  if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
-=======
   if (!errors.isEmpty()) {
     const errorMsg = errors.array()[0].msg || "Validation failed.";
     return res.status(400).json({ success: false, message: errorMsg, errors: errors.array() });
   }
->>>>>>> origin/main
 
   const hotel = await Hotel.create(req.body);
   cache.flushAll();

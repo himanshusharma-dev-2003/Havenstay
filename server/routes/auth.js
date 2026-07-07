@@ -13,11 +13,7 @@ const registerRules = [
 ];
 
 const loginRules = [
-<<<<<<< HEAD
-  body("email").isEmail().normalizeEmail(),
-=======
   body("email").isEmail().withMessage("Valid email required").normalizeEmail(),
->>>>>>> origin/main
   body("password").notEmpty().withMessage("Password is required"),
 ];
 

@@ -48,14 +48,10 @@ exports.getRoomById = catchAsync(async (req, res, next) => {
 // ── POST /api/rooms (admin) ───────────────────────────────────────
 exports.createRoom = catchAsync(async (req, res, next) => {
   const errors = validationResult(req);
-<<<<<<< HEAD
-  if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
-=======
   if (!errors.isEmpty()) {
     const errorMsg = errors.array()[0].msg || "Validation failed.";
     return res.status(400).json({ success: false, message: errorMsg, errors: errors.array() });
   }
->>>>>>> origin/main
 
   const { hotelId } = req.body;
   const hotel = await Hotel.findById(hotelId);

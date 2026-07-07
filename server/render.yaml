@@ -1,56 +1,25 @@
-services:
+﻿services:
   - type: web
     name: restrip-backend
     env: node
     region: oregon
     plan: free
-<<<<<<< HEAD
-    buildCommand: npm install
-    startCommand: node server.js
+    rootDir: server
+    buildCommand: npm install --prefix server
+    startCommand: npm start --prefix server
     healthCheckPath: /api/health
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: MONGO_URI
-        sync: false       # set manually in Render dashboard
-      - key: JWT_ACCESS_SECRET
-        generateValue: false  # set manually
-      - key: JWT_REFRESH_SECRET
-        generateValue: false  # set manually
-      - key: JWT_ACCESS_EXPIRES
-        value: 15m
-      - key: JWT_REFRESH_EXPIRES
-        value: 7d
-      - key: CLIENT_URL
-        sync: false       # your Vercel/Netlify URL
-=======
-    rootDir: server   # 🔥 THIS FIXES YOUR ISSUE
-    buildCommand: npm install
-    startCommand: node server.js
-    healthCheckPath: /api/health
-
     envVars:
       - key: NODE_ENV
         value: "production"
-
-      - key: PORT
-        value: "10000"
-
       - key: MONGO_URI
-        value: "mongodb+srv://himanshukumar151821_db_user:hks%402003@cluster0.aixlreh.mongodb.net/restrip?retryWrites=true&w=majority"
-
+        sync: false
       - key: JWT_ACCESS_SECRET
-        value: "your_access_secret"
-
+        generateValue: false
       - key: JWT_REFRESH_SECRET
-        value: "your_refresh_secret"
-
+        generateValue: false
       - key: JWT_ACCESS_EXPIRES
         value: "15m"
-
       - key: JWT_REFRESH_EXPIRES
         value: "7d"
-
       - key: CLIENT_URL
-        value: "https://client-sand-chi.vercel.app/"
->>>>>>> origin/main
+        sync: false
