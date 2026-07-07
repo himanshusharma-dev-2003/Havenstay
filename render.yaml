@@ -1,0 +1,22 @@
+# Render service definition for restrip backend
+# DO NOT commit secrets here; set them via Render dashboard or API.
+services:
+  - type: web
+    name: restrip-backend
+    env: node
+    plan: free
+    branch: main
+    buildCommand: npm install --prefix server
+    startCommand: npm start --prefix server
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        value: ""
+      - key: JWT_ACCESS_SECRET
+        value: ""
+      - key: JWT_REFRESH_SECRET
+        value: ""
+      - key: CLIENT_URL
+        value: ""
