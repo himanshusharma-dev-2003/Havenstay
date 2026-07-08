@@ -6,6 +6,23 @@ const { AppError, catchAsync } = require("../utils/errors");
 
 const cache = new NodeCache({ stdTTL: 60, checkperiod: 30 }); // 60s TTL
 
+// Helper for geocoding
+async function geocode(address, city, country) {
+  try {
+    const q = encodeURIComponent(`${address}, ${city}, ${country}`);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`, {
+      headers: { "User-Agent": "RestripApp/1.0" }
+    });
+    const data = await res.json();
+    if (data && data.length > 0) {
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    }
+  } catch (err) {
+    console.error("Geocoding failed:", err);
+  }
+  return null;
+}
+
 // ── GET /api/hotels ───────────────────────────────────────────────
 exports.getAllHotels = catchAsync(async (req, res) => {
   const { city, minPrice, maxPrice, rating, category, featured, page = 1, limit = 12, sort = "-rating" } = req.query;
@@ -80,6 +97,14 @@ exports.createHotel = catchAsync(async (req, res, next) => {
     req.body.owner = req.user.id;
   }
 
+  if (!req.body.lat || !req.body.lng) {
+    const coords = await geocode(req.body.address, req.body.city, req.body.country);
+    if (coords) {
+      req.body.lat = coords.lat;
+      req.body.lng = coords.lng;
+    }
+  }
+
   const hotel = await Hotel.create(req.body);
   cache.flushAll();
   res.status(201).json({ success: true, data: hotel });
@@ -95,6 +120,15 @@ exports.updateHotel = catchAsync(async (req, res, next) => {
   }
 
   Object.assign(hotel, req.body);
+
+  if (!hotel.lat || !hotel.lng) {
+    const coords = await geocode(hotel.address, hotel.city, hotel.country);
+    if (coords) {
+      hotel.lat = coords.lat;
+      hotel.lng = coords.lng;
+    }
+  }
+
   await hotel.save();
 
   cache.flushAll();

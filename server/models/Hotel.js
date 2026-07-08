@@ -34,6 +34,8 @@ const hotelSchema = new mongoose.Schema(
       maxlength: [2000, "Description too long"],
     },
     photos: [{ type: String }],
+    lat: { type: Number },
+    lng: { type: Number },
     rating: {
       type: Number,
       default: 0,

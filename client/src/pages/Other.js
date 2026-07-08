@@ -142,6 +142,8 @@ export function Admin() {
     cheapestPrice: "",
     category: "Resort",
     photos: [""],
+    lat: "",
+    lng: "",
   });
 
   const [roomForm, setRoomForm] = useState({
@@ -213,7 +215,7 @@ export function Admin() {
 
       await refetchHotels();
       setEditingHotelId(null);
-      setHotelForm({ name:"", city:"", country:"", address:"", description:"", cheapestPrice:"", category:"Resort", photos:[""] });
+      setHotelForm({ name:"", city:"", country:"", address:"", description:"", cheapestPrice:"", category:"Resort", photos:[""], lat:"", lng:"" });
     } catch (err) {
       setToast({ msg:err.message, type:"error" });
     } finally { setSaving(false); }
@@ -230,6 +232,8 @@ export function Admin() {
       cheapestPrice: String(hotel.cheapestPrice || ""),
       category: hotel.category || "Resort",
       photos: hotel.photos?.length ? hotel.photos : [""],
+      lat: hotel.lat ? String(hotel.lat) : "",
+      lng: hotel.lng ? String(hotel.lng) : "",
     });
     setTab("hotels");
   };
@@ -443,6 +447,16 @@ export function Admin() {
                     <input className="input-dark" type={type} value={hotelForm[key]} onChange={e => setHotelForm(h => ({ ...h, [key]:e.target.value }))} />
                   </div>
                 ))}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                  <div>
+                    <div style={{ fontSize:9, letterSpacing:2.2, color:"#b8943f", textTransform:"uppercase", marginBottom:6 }}>Latitude (Optional)</div>
+                    <input className="input-dark" type="number" step="any" value={hotelForm.lat} onChange={e => setHotelForm(h => ({ ...h, lat:e.target.value }))} placeholder="e.g. 28.6139" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize:9, letterSpacing:2.2, color:"#b8943f", textTransform:"uppercase", marginBottom:6 }}>Longitude (Optional)</div>
+                    <input className="input-dark" type="number" step="any" value={hotelForm.lng} onChange={e => setHotelForm(h => ({ ...h, lng:e.target.value }))} placeholder="e.g. 77.2090" />
+                  </div>
+                </div>
                 <div>
                   <div style={{ fontSize:9, letterSpacing:2.2, color:"#b8943f", textTransform:"uppercase", marginBottom:6 }}>Category</div>
                   <select className="input-dark" value={hotelForm.category} onChange={e => setHotelForm(h => ({ ...h, category:e.target.value }))}>
@@ -463,7 +477,7 @@ export function Admin() {
                   {saving ? "Saving..." : editingHotelId ? "Update Property" : "Create Property"}
                 </button>
                 {editingHotelId && (
-                  <button className="btn-outline" style={{ padding:"12px 24px" }} onClick={() => { setEditingHotelId(null); setHotelForm({ name:"", city:"", country:"", address:"", description:"", cheapestPrice:"", category:"Resort", photos:[""] }); }}>
+                  <button className="btn-outline" style={{ padding:"12px 24px" }} onClick={() => { setEditingHotelId(null); setHotelForm({ name:"", city:"", country:"", address:"", description:"", cheapestPrice:"", category:"Resort", photos:[""], lat:"", lng:"" }); }}>
                     Cancel
                   </button>
                 )}
