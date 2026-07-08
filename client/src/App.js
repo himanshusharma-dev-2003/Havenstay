@@ -17,6 +17,8 @@ function ProtectedRoute({ children, adminOnly = false }) {
   return children;
 }
 
+import ChatWidget from "./components/ChatWidget";
+
 function AppRoutes() {
   return (
     <>
@@ -33,6 +35,7 @@ function AppRoutes() {
         <Route path="/admin"           element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
         <Route path="*"                element={<Navigate to="/" replace />} />
       </Routes>
+      <ChatWidget />
     </>
   );
 }

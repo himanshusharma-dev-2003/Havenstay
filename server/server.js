@@ -12,6 +12,7 @@ const authRoutes    = require("./routes/auth");
 const hotelRoutes   = require("./routes/hotels");
 const roomRoutes    = require("./routes/rooms");
 const bookingRoutes = require("./routes/bookings");
+const chatRoutes    = require("./routes/chat");
 
 const app = express();
 
@@ -74,6 +75,7 @@ app.use("/api/auth",     authRoutes);
 app.use("/api/hotels",   hotelRoutes);
 app.use("/api/rooms",    roomRoutes);
 app.use("/api/bookings", bookingRoutes);
+app.use("/api/chat",     chatRoutes);
 
 // ── Health check ──────────────────────────────────────────────────
 app.get("/api/health", (req, res) => {
@@ -103,12 +105,17 @@ app.use((err, req, res, next) => {
 
 // ── Database + Start ──────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
+const http = require("http");
+const { initSocket } = require("./utils/socket");
+
+const server = http.createServer(app);
+initSocket(server);
 
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log("✅ MongoDB connected");
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`🚀 Restrip API running on http://localhost:${PORT}`);
       console.log(`📋 Health check: http://localhost:${PORT}/api/health`);
     });
@@ -118,4 +125,4 @@ mongoose
     process.exit(1);
   });
 
-module.exports = app;
+module.exports = server;
