@@ -1,7 +1,7 @@
 const express = require("express");
 const { body } = require("express-validator");
 const ctrl     = require("../controllers/roomController");
-const { verifyToken, verifyAdmin } = require("../middleware/auth");
+const { verifyToken, verifyAdmin, verifyOwnerOrAdmin } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -17,9 +17,9 @@ router.get("/",                   ctrl.getRoomsByHotel);
 router.get("/:id",                ctrl.getRoomById);
 router.get("/:id/availability",   ctrl.checkAvailability);
 
-// Admin only
-router.post(  "/",    verifyToken, verifyAdmin, roomRules, ctrl.createRoom);
-router.put(   "/:id", verifyToken, verifyAdmin,            ctrl.updateRoom);
-router.delete("/:id", verifyToken, verifyAdmin,            ctrl.deleteRoom);
+// Admin or Owner
+router.post(  "/",    verifyToken, verifyOwnerOrAdmin, roomRules, ctrl.createRoom);
+router.put(   "/:id", verifyToken, verifyOwnerOrAdmin,            ctrl.updateRoom);
+router.delete("/:id", verifyToken, verifyOwnerOrAdmin,            ctrl.deleteRoom);
 
 module.exports = router;

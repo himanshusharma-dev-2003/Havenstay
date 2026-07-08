@@ -57,6 +57,10 @@ exports.createRoom = catchAsync(async (req, res, next) => {
   const hotel = await Hotel.findById(hotelId);
   if (!hotel) return next(new AppError("Hotel not found.", 404));
 
+  if (req.user.role === "owner" && hotel.owner?.toString() !== req.user.id) {
+    return next(new AppError("Unauthorized.", 403));
+  }
+
   const room = await Room.create(req.body);
 
   // Update hotel's cheapest price if this room is cheaper
@@ -67,17 +71,37 @@ exports.createRoom = catchAsync(async (req, res, next) => {
   res.status(201).json({ success: true, data: room });
 });
 
-// ── PUT /api/rooms/:id (admin) ────────────────────────────────────
+// ── PUT /api/rooms/:id (admin/owner) ────────────────────────────────────
 exports.updateRoom = catchAsync(async (req, res, next) => {
-  const room = await Room.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+  let room = await Room.findById(req.params.id);
   if (!room) return next(new AppError("Room not found.", 404));
+
+  if (req.user.role === "owner") {
+    const hotel = await Hotel.findById(room.hotelId);
+    if (hotel.owner?.toString() !== req.user.id) {
+      return next(new AppError("Unauthorized.", 403));
+    }
+  }
+
+  Object.assign(room, req.body);
+  await room.save();
   res.json({ success: true, data: room });
 });
 
-// ── DELETE /api/rooms/:id (admin) ────────────────────────────────
+// ── DELETE /api/rooms/:id (admin/owner) ────────────────────────────────
 exports.deleteRoom = catchAsync(async (req, res, next) => {
-  const room = await Room.findByIdAndUpdate(req.params.id, { isActive: false });
+  const room = await Room.findById(req.params.id);
   if (!room) return next(new AppError("Room not found.", 404));
+
+  if (req.user.role === "owner") {
+    const hotel = await Hotel.findById(room.hotelId);
+    if (hotel.owner?.toString() !== req.user.id) {
+      return next(new AppError("Unauthorized.", 403));
+    }
+  }
+
+  room.isActive = false;
+  await room.save();
   res.json({ success: true, message: "Room deactivated." });
 });
 

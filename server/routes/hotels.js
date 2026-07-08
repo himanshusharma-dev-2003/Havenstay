@@ -1,7 +1,7 @@
 const express = require("express");
 const { body } = require("express-validator");
 const ctrl     = require("../controllers/hotelController");
-const { verifyToken, verifyAdmin } = require("../middleware/auth");
+const { verifyToken, verifyAdmin, verifyOwnerOrAdmin, optionalAuth } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -15,12 +15,12 @@ const hotelRules = [
 ];
 
 // Public
-router.get("/",    ctrl.getAllHotels);
+router.get("/",    optionalAuth, ctrl.getAllHotels);
 router.get("/:id", ctrl.getHotelById);
 
-// Admin only
-router.post(  "/",    verifyToken, verifyAdmin, hotelRules, ctrl.createHotel);
-router.put(   "/:id", verifyToken, verifyAdmin,             ctrl.updateHotel);
-router.delete("/:id", verifyToken, verifyAdmin,             ctrl.deleteHotel);
+// Admin or Owner
+router.post(  "/",    verifyToken, verifyOwnerOrAdmin, hotelRules, ctrl.createHotel);
+router.put(   "/:id", verifyToken, verifyOwnerOrAdmin,             ctrl.updateHotel);
+router.delete("/:id", verifyToken, verifyOwnerOrAdmin,             ctrl.deleteHotel);
 
 module.exports = router;

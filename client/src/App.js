@@ -9,11 +9,11 @@ import { AuthPage } from "./pages/Auth";
 import { BookingConfirm, MyBookings, Admin } from "./pages/Other";
 import About from "./pages/About";
 
-function ProtectedRoute({ children, adminOnly = false }) {
+function ProtectedRoute({ children, allowedRoles }) {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user)   return <Navigate to="/auth" replace />;
-  if (adminOnly && user.role !== "admin") return <Navigate to="/" replace />;
+  if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -32,7 +32,8 @@ function AppRoutes() {
         <Route path="/auth"            element={<AuthPage />} />
         <Route path="/booking-confirm" element={<ProtectedRoute><BookingConfirm /></ProtectedRoute>} />
         <Route path="/bookings"        element={<ProtectedRoute><MyBookings /></ProtectedRoute>} />
-        <Route path="/admin"           element={<ProtectedRoute adminOnly><Admin /></ProtectedRoute>} />
+        <Route path="/admin"           element={<ProtectedRoute allowedRoles={["admin"]}><Admin /></ProtectedRoute>} />
+        <Route path="/owner"           element={<ProtectedRoute allowedRoles={["owner"]}><Admin /></ProtectedRoute>} />
         <Route path="*"                element={<Navigate to="/" replace />} />
       </Routes>
       <ChatWidget />
