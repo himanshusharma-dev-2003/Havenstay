@@ -178,12 +178,27 @@ exports.getMyBookings = catchAsync(async (req, res) => {
   });
 });
 
-// ── GET /api/bookings (admin) ─────────────────────────────────────
-exports.getAllBookings = catchAsync(async (req, res) => {
+// ── GET /api/bookings (admin/owner) ─────────────────────────────────────
+exports.getAllBookings = catchAsync(async (req, res, next) => {
   const { page = 1, limit = 20, status, hotelId } = req.query;
   const filter = {};
   if (status)  filter.status  = status;
-  if (hotelId) filter.hotelId = hotelId;
+
+  if (req.user.role === "owner") {
+    const myHotels = await Hotel.find({ owner: req.user.id }).select("_id");
+    const myHotelIds = myHotels.map((h) => h._id);
+
+    if (hotelId) {
+      if (!myHotelIds.some((id) => id.toString() === hotelId)) {
+        return next(new AppError("Unauthorized.", 403));
+      }
+      filter.hotelId = hotelId;
+    } else {
+      filter.hotelId = { $in: myHotelIds };
+    }
+  } else {
+    if (hotelId) filter.hotelId = hotelId;
+  }
 
   const bookings = await Booking.find(filter)
     .sort({ createdAt: -1 })
@@ -195,9 +210,12 @@ exports.getAllBookings = catchAsync(async (req, res) => {
 
   const total = await Booking.countDocuments(filter);
 
-  // Revenue summary for admin
+  // Revenue summary for admin/owner
+  const revenueMatch = { status: { $in: ["confirmed", "completed"] } };
+  if (filter.hotelId) revenueMatch.hotelId = filter.hotelId;
+
   const revenueAgg = await Booking.aggregate([
-    { $match: { status: { $in: ["confirmed", "completed"] } } },
+    { $match: revenueMatch },
     { $group: { _id: null, totalRevenue: { $sum: "$totalPrice" }, count: { $sum: 1 } } },
   ]);
   const revenue = revenueAgg[0] || { totalRevenue: 0, count: 0 };

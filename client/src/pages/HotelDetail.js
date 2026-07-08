@@ -5,6 +5,7 @@ import { bookingsAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { fmt, Tag, Stars, Spinner, Toast } from "../components/UI";
 import { loadScript } from "../utils/loadScript";
+import MapWidget from "../components/MapWidget";
 
 export default function HotelDetail() {
   const { id } = useParams();
@@ -126,6 +127,14 @@ export default function HotelDetail() {
           <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:48 }}>
             {hotel.amenities?.map(a => <span key={a} className="amenity-pill">{a}</span>)}
           </div>
+          
+          <h2 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:32, fontWeight:300, color:"#f5efe6", marginBottom:24 }}>
+            Neighborhood <em style={{ fontWeight:600, color:"#d4af6a" }}>& Maps</em>
+          </h2>
+          <div style={{ marginBottom: 48 }}>
+            <MapWidget hotel={hotel} />
+          </div>
+
           <div style={{ height:1, background:"linear-gradient(to right,transparent,#b8943f,transparent)", margin:"0 0 40px" }} />
 
           <h2 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:32, fontWeight:300, color:"#f5efe6", marginBottom:24 }}>

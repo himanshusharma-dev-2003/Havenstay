@@ -6,6 +6,23 @@ const { AppError, catchAsync } = require("../utils/errors");
 
 const cache = new NodeCache({ stdTTL: 60, checkperiod: 30 }); // 60s TTL
 
+// Helper for geocoding
+async function geocode(address, city, country) {
+  try {
+    const q = encodeURIComponent(`${address}, ${city}, ${country}`);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`, {
+      headers: { "User-Agent": "RestripApp/1.0" }
+    });
+    const data = await res.json();
+    if (data && data.length > 0) {
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    }
+  } catch (err) {
+    console.error("Geocoding failed:", err);
+  }
+  return null;
+}
+
 // ── GET /api/hotels ───────────────────────────────────────────────
 exports.getAllHotels = catchAsync(async (req, res) => {
   const { city, minPrice, maxPrice, rating, category, featured, page = 1, limit = 12, sort = "-rating" } = req.query;
@@ -16,6 +33,10 @@ exports.getAllHotels = catchAsync(async (req, res) => {
   if (cached) return res.json(cached);
 
   const filter = { isActive: true };
+  if (req.user && req.user.role === "owner") {
+    filter.owner = req.user.id;
+  }
+
   if (city)     filter.city     = new RegExp(city, "i");
   if (category) filter.category = category;
   if (featured) filter.featured = featured === "true";
@@ -64,7 +85,7 @@ exports.getHotelById = catchAsync(async (req, res, next) => {
   res.json(response);
 });
 
-// ── POST /api/hotels (admin) ──────────────────────────────────────
+// ── POST /api/hotels (admin/owner) ──────────────────────────────────────
 exports.createHotel = catchAsync(async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -72,23 +93,60 @@ exports.createHotel = catchAsync(async (req, res, next) => {
     return res.status(400).json({ success: false, message: errorMsg, errors: errors.array() });
   }
 
+  if (req.user.role === "owner") {
+    req.body.owner = req.user.id;
+  }
+
+  if (!req.body.lat || !req.body.lng) {
+    const coords = await geocode(req.body.address, req.body.city, req.body.country);
+    if (coords) {
+      req.body.lat = coords.lat;
+      req.body.lng = coords.lng;
+    }
+  }
+
   const hotel = await Hotel.create(req.body);
   cache.flushAll();
   res.status(201).json({ success: true, data: hotel });
 });
 
-// ── PUT /api/hotels/:id (admin) ───────────────────────────────────
+// ── PUT /api/hotels/:id (admin/owner) ───────────────────────────────────
 exports.updateHotel = catchAsync(async (req, res, next) => {
-  const hotel = await Hotel.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+  const hotel = await Hotel.findById(req.params.id);
   if (!hotel) return next(new AppError("Hotel not found.", 404));
+
+  if (req.user.role === "owner" && hotel.owner?.toString() !== req.user.id) {
+    return next(new AppError("Unauthorized.", 403));
+  }
+
+  Object.assign(hotel, req.body);
+
+  if (!hotel.lat || !hotel.lng) {
+    const coords = await geocode(hotel.address, hotel.city, hotel.country);
+    if (coords) {
+      hotel.lat = coords.lat;
+      hotel.lng = coords.lng;
+    }
+  }
+
+  await hotel.save();
+
   cache.flushAll();
   res.json({ success: true, data: hotel });
 });
 
-// ── DELETE /api/hotels/:id (admin) ───────────────────────────────
+// ── DELETE /api/hotels/:id (admin/owner) ───────────────────────────────
 exports.deleteHotel = catchAsync(async (req, res, next) => {
-  const hotel = await Hotel.findByIdAndUpdate(req.params.id, { isActive: false });
+  const hotel = await Hotel.findById(req.params.id);
   if (!hotel) return next(new AppError("Hotel not found.", 404));
+
+  if (req.user.role === "owner" && hotel.owner?.toString() !== req.user.id) {
+    return next(new AppError("Unauthorized.", 403));
+  }
+
+  hotel.isActive = false;
+  await hotel.save();
+
   cache.flushAll();
   res.json({ success: true, message: "Hotel deactivated." });
 });
