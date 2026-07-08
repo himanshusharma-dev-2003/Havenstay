@@ -3,6 +3,7 @@ import { useMyBookings, useAllBookings, useHotels } from "../hooks";
 import { hotelsAPI, roomsAPI } from "../api";
 import { fmt, Tag, Spinner, Toast } from "../components/UI";
 import { useEffect, useState } from "react";
+import AdminChat from "../components/AdminChat";
 
 // ── Booking Confirmation ──────────────────────────────────────────
 export function BookingConfirm() {
@@ -340,7 +341,7 @@ export function Admin() {
           Admin <em style={{ fontWeight:600, color:"#d4af6a" }}>Console</em>
         </h1>
         <div style={{ display:"flex", gap:3 }}>
-          {["overview","bookings","hotels","rooms"].map(t => (
+          {["overview","bookings","hotels","rooms","chats"].map(t => (
             <button key={t} onClick={() => setTab(t)} style={{ padding:"12px 32px", background: tab===t?"#b8943f":"transparent", color: tab===t?"#0a0806":"#9a8e7e", border:"1px solid", borderColor: tab===t?"#b8943f":"rgba(184,148,63,0.2)", cursor:"pointer", fontSize:10, fontWeight:600, letterSpacing:2, textTransform:"uppercase", fontFamily:"'Jost',sans-serif" }}>{t}</button>
           ))}
         </div>
@@ -544,6 +545,10 @@ export function Admin() {
               </div>
             </div>
           </div>
+        )}
+
+        {tab==="chats" && (
+          <AdminChat />
         )}
       </div>
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
