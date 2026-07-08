@@ -4,6 +4,7 @@ import { useHotel, useRooms } from "../hooks";
 import { bookingsAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { fmt, Tag, Stars, Spinner, Toast } from "../components/UI";
+import { loadScript } from "../utils/loadScript";
 
 export default function HotelDetail() {
   const { id } = useParams();
@@ -42,7 +43,54 @@ export default function HotelDetail() {
         checkOut: form.checkout,
         guests:   Number(form.guests),
       });
-      navigate("/booking-confirm", { state: { booking: res.data } });
+
+      const { _id, razorpayOrderId, amount, currency } = res.data;
+
+      const scriptLoaded = await loadScript("https://checkout.razorpay.com/v1/checkout.js");
+      if (!scriptLoaded) {
+        throw new Error("Razorpay SDK failed to load. Are you online?");
+      }
+
+      const options = {
+        key: process.env.REACT_APP_RAZORPAY_KEY_ID || "",
+        amount: amount,
+        currency: currency,
+        name: "Restrip",
+        description: `Booking for ${hotel.name}`,
+        image: hotel.photos?.[0],
+        order_id: razorpayOrderId,
+        handler: async function (response) {
+          try {
+            await bookingsAPI.verifyPayment(_id, {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            navigate("/booking-confirm", { state: { booking: res.data } });
+          } catch (err) {
+            setToast({ msg: err.message || "Payment verification failed", type: "error" });
+          }
+        },
+        prefill: {
+          name: user.name,
+          email: user.email,
+        },
+        theme: {
+          color: "#b8943f",
+        },
+        modal: {
+          ondismiss: () => {
+            setToast({ msg: "Payment cancelled. Reservation is pending.", type: "error" });
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", function (response) {
+        setToast({ msg: response.error.description || "Payment failed", type: "error" });
+      });
+      rzp.open();
+
     } catch (err) {
       setToast({ msg: err.message, type:"error" });
     } finally {

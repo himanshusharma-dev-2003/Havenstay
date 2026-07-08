@@ -79,6 +79,7 @@ export const bookingsAPI = {
   },
   getById: (id)          => request(`/bookings/${id}`),
   cancel:  (id, reason)  => request(`/bookings/${id}/cancel`, { method: "PATCH", body: JSON.stringify({ reason }) }),
+  verifyPayment: (id, data) => request(`/bookings/${id}/verify-payment`, { method: "POST", body: JSON.stringify(data) }),
   getAll:  (params = {}) => {
     const qs = new URLSearchParams(params).toString();
     return request(`/bookings${qs ? "?" + qs : ""}`);

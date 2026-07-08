@@ -15,6 +15,7 @@ const bookingRules = [
 
 // User routes
 router.post("/",              verifyToken,              bookingRules, ctrl.createBooking);
+router.post("/:id/verify-payment", verifyToken,                     ctrl.verifyPayment);
 router.get( "/my",            verifyToken,                            ctrl.getMyBookings);
 router.get( "/:id",           verifyToken,                            ctrl.getBookingById);
 router.patch("/:id/cancel",   verifyToken,                            ctrl.cancelBooking);

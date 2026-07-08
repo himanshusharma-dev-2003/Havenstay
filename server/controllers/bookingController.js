@@ -4,6 +4,8 @@ const Booking = require("../models/Booking");
 const Room    = require("../models/Room");
 const Hotel   = require("../models/Hotel");
 const { AppError, catchAsync } = require("../utils/errors");
+const Razorpay = require("razorpay");
+const crypto = require("crypto");
 
 // Helper — generate all dates in range [checkIn, checkOut)
 const getDateRange = (checkIn, checkOut) => {
@@ -112,8 +114,28 @@ exports.createBooking = catchAsync(async (req, res, next) => {
     nights,
     pricePerNight:  room.price,
     totalPrice,
-    status:         "confirmed",
+    status:         "pending",
   });
+
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    // If Razorpay is not configured, we should cancel the booking and error out
+    await booking.deleteOne();
+    return next(new AppError("Payment gateway is not configured.", 500));
+  }
+
+  const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+
+  const order = await razorpay.orders.create({
+    amount: totalPrice * 100, // amount in paisa
+    currency: "INR",
+    receipt: booking._id.toString(),
+  });
+
+  booking.razorpayOrderId = order.id;
+  await booking.save();
 
   await booking.populate([
     { path: "hotelId", select: "name city photos" },
@@ -122,8 +144,13 @@ exports.createBooking = catchAsync(async (req, res, next) => {
 
   res.status(201).json({
     success: true,
-    message: "Booking confirmed.",
-    data: booking,
+    message: "Booking initialized.",
+    data: {
+      ...booking.toObject(),
+      razorpayOrderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+    },
   });
 });
 
@@ -233,4 +260,37 @@ exports.cancelBooking = catchAsync(async (req, res, next) => {
   await booking.save();
 
   res.json({ success: true, message: "Booking cancelled and dates released.", data: booking });
+});
+
+// ── POST /api/bookings/:id/verify-payment ─────────────────────────
+exports.verifyPayment = catchAsync(async (req, res, next) => {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+  const bookingId = req.params.id;
+
+  const body = razorpay_order_id + "|" + razorpay_payment_id;
+  const expectedSignature = crypto
+    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+    .update(body.toString())
+    .digest("hex");
+
+  if (expectedSignature !== razorpay_signature) {
+    return next(new AppError("Payment verification failed.", 400));
+  }
+
+  const booking = await Booking.findById(bookingId);
+  if (!booking) return next(new AppError("Booking not found.", 404));
+
+  if (booking.razorpayOrderId !== razorpay_order_id) {
+    return next(new AppError("Invalid Razorpay order ID.", 400));
+  }
+
+  booking.razorpayPaymentId = razorpay_payment_id;
+  booking.razorpaySignature = razorpay_signature;
+  booking.status = "confirmed";
+  await booking.save();
+
+  res.json({
+    success: true,
+    message: "Payment verified successfully",
+  });
 });
