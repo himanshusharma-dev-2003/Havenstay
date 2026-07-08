@@ -1,7 +1,7 @@
 const express = require("express");
 const { body } = require("express-validator");
 const ctrl     = require("../controllers/bookingController");
-const { verifyToken, verifyAdmin } = require("../middleware/auth");
+const { verifyToken, verifyAdmin, verifyOwnerOrAdmin } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -20,7 +20,7 @@ router.get( "/my",            verifyToken,                            ctrl.getMy
 router.get( "/:id",           verifyToken,                            ctrl.getBookingById);
 router.patch("/:id/cancel",   verifyToken,                            ctrl.cancelBooking);
 
-// Admin routes
-router.get( "/",              verifyToken, verifyAdmin,               ctrl.getAllBookings);
+// Admin or Owner routes
+router.get( "/",              verifyToken, verifyOwnerOrAdmin,        ctrl.getAllBookings);
 
 module.exports = router;

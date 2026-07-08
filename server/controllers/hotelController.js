@@ -16,6 +16,10 @@ exports.getAllHotels = catchAsync(async (req, res) => {
   if (cached) return res.json(cached);
 
   const filter = { isActive: true };
+  if (req.user && req.user.role === "owner") {
+    filter.owner = req.user.id;
+  }
+
   if (city)     filter.city     = new RegExp(city, "i");
   if (category) filter.category = category;
   if (featured) filter.featured = featured === "true";
@@ -64,7 +68,7 @@ exports.getHotelById = catchAsync(async (req, res, next) => {
   res.json(response);
 });
 
-// ── POST /api/hotels (admin) ──────────────────────────────────────
+// ── POST /api/hotels (admin/owner) ──────────────────────────────────────
 exports.createHotel = catchAsync(async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -72,23 +76,43 @@ exports.createHotel = catchAsync(async (req, res, next) => {
     return res.status(400).json({ success: false, message: errorMsg, errors: errors.array() });
   }
 
+  if (req.user.role === "owner") {
+    req.body.owner = req.user.id;
+  }
+
   const hotel = await Hotel.create(req.body);
   cache.flushAll();
   res.status(201).json({ success: true, data: hotel });
 });
 
-// ── PUT /api/hotels/:id (admin) ───────────────────────────────────
+// ── PUT /api/hotels/:id (admin/owner) ───────────────────────────────────
 exports.updateHotel = catchAsync(async (req, res, next) => {
-  const hotel = await Hotel.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+  const hotel = await Hotel.findById(req.params.id);
   if (!hotel) return next(new AppError("Hotel not found.", 404));
+
+  if (req.user.role === "owner" && hotel.owner?.toString() !== req.user.id) {
+    return next(new AppError("Unauthorized.", 403));
+  }
+
+  Object.assign(hotel, req.body);
+  await hotel.save();
+
   cache.flushAll();
   res.json({ success: true, data: hotel });
 });
 
-// ── DELETE /api/hotels/:id (admin) ───────────────────────────────
+// ── DELETE /api/hotels/:id (admin/owner) ───────────────────────────────
 exports.deleteHotel = catchAsync(async (req, res, next) => {
-  const hotel = await Hotel.findByIdAndUpdate(req.params.id, { isActive: false });
+  const hotel = await Hotel.findById(req.params.id);
   if (!hotel) return next(new AppError("Hotel not found.", 404));
+
+  if (req.user.role === "owner" && hotel.owner?.toString() !== req.user.id) {
+    return next(new AppError("Unauthorized.", 403));
+  }
+
+  hotel.isActive = false;
+  await hotel.save();
+
   cache.flushAll();
   res.json({ success: true, message: "Hotel deactivated." });
 });

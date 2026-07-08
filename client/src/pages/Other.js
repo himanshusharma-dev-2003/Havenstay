@@ -3,6 +3,8 @@ import { useMyBookings, useAllBookings, useHotels } from "../hooks";
 import { hotelsAPI, roomsAPI } from "../api";
 import { fmt, Tag, Spinner, Toast } from "../components/UI";
 import { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import AdminChat from "../components/AdminChat";
 
 // ── Booking Confirmation ──────────────────────────────────────────
 export function BookingConfirm() {
@@ -116,6 +118,7 @@ export function MyBookings() {
 
 // ── Admin Dashboard ───────────────────────────────────────────────
 export function Admin() {
+  const { user } = useAuth();
   const [tab, setTab] = useState("overview");
   const [toast, setToast] = useState(null);
   const { data: bookingsData, loading } = useAllBookings({ limit:100 });
@@ -337,10 +340,10 @@ export function Admin() {
       <div style={{ background:"#111009", padding:"56px 64px 0", borderBottom:"1px solid rgba(184,148,63,0.2)" }}>
         <div className="section-tag" style={{ marginBottom:12 }}><span className="gold-line" />Management</div>
         <h1 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"4rem", fontWeight:300, color:"#f5efe6", marginBottom:32 }}>
-          Admin <em style={{ fontWeight:600, color:"#d4af6a" }}>Console</em>
+          {user?.role === "owner" ? "Owner" : "Admin"} <em style={{ fontWeight:600, color:"#d4af6a" }}>Console</em>
         </h1>
         <div style={{ display:"flex", gap:3 }}>
-          {["overview","bookings","hotels","rooms"].map(t => (
+          {["overview","bookings","hotels","rooms","chats"].map(t => (
             <button key={t} onClick={() => setTab(t)} style={{ padding:"12px 32px", background: tab===t?"#b8943f":"transparent", color: tab===t?"#0a0806":"#9a8e7e", border:"1px solid", borderColor: tab===t?"#b8943f":"rgba(184,148,63,0.2)", cursor:"pointer", fontSize:10, fontWeight:600, letterSpacing:2, textTransform:"uppercase", fontFamily:"'Jost',sans-serif" }}>{t}</button>
           ))}
         </div>
@@ -544,6 +547,10 @@ export function Admin() {
               </div>
             </div>
           </div>
+        )}
+
+        {tab==="chats" && (
+          <AdminChat />
         )}
       </div>
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}

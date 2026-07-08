@@ -36,6 +36,14 @@ const verifyAdmin = (req, res, next) => {
   next();
 };
 
+// ── Verify admin or owner role ────────────────────────────────────
+const verifyOwnerOrAdmin = (req, res, next) => {
+  if (!req.user || (req.user.role !== "admin" && req.user.role !== "owner")) {
+    return res.status(403).json({ success: false, message: "Access denied. Admin or Owner role required." });
+  }
+  next();
+};
+
 // ── Optional auth (attach user if token present, else continue) ───
 const optionalAuth = async (req, res, next) => {
   try {
@@ -55,4 +63,4 @@ const optionalAuth = async (req, res, next) => {
   next();
 };
 
-module.exports = { verifyToken, verifyAdmin, optionalAuth };
+module.exports = { verifyToken, verifyAdmin, verifyOwnerOrAdmin, optionalAuth };

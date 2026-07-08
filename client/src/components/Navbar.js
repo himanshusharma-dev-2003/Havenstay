@@ -48,6 +48,10 @@ export default function Navbar() {
           <button className={`nav-item ${location.pathname === "/admin" ? "active" : ""}`}
             onClick={() => go("/admin")}>Admin</button>
         )}
+        {user?.role === "owner" && (
+          <button className={`nav-item ${location.pathname === "/owner" ? "active" : ""}`}
+            onClick={() => go("/owner")}>Dashboard</button>
+        )}
 
         {user ? (
           <div style={{ display:"flex", alignItems:"center", gap:20 }}>
