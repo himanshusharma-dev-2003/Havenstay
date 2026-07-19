@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { authAPI, setAccessToken } from "../api";
+import { authAPI } from "../api";
 
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
@@ -13,7 +13,7 @@ export function AuthProvider({ children }) {
     (async () => {
       try {
         const data = await authAPI.getMe();
-        if (data.user) {
+        if (data && data.user) {
           setUser(data.user);
         }
       } catch {
@@ -25,22 +25,22 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
-    const data = await authAPI.login(email, password);
-    setAccessToken(data.accessToken);
+    await authAPI.login(email, password);
+    // server sets httpOnly cookies; fetch current user
+    const data = await authAPI.getMe();
     setUser(data.user);
     return data;
   };
 
   const register = async (name, email, password) => {
-    const data = await authAPI.register(name, email, password);
-    setAccessToken(data.accessToken);
+    await authAPI.register(name, email, password);
+    const data = await authAPI.getMe();
     setUser(data.user);
     return data;
   };
 
   const logout = async () => {
     try { await authAPI.logout(); } catch {}
-    setAccessToken(null);
     setUser(null);
   };
 

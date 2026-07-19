@@ -47,10 +47,10 @@ exports.register = catchAsync(async (req, res, next) => {
   res.cookie("accessToken", accessToken, ACCESS_COOKIE_OPTIONS);
   res.cookie("refreshToken", refreshToken, REFRESH_COOKIE_OPTIONS);
 
+  // Do not expose tokens in JSON responses — rely on secure httpOnly cookies
   res.status(201).json({
     success: true,
     message: "Account created successfully.",
-    accessToken,
     user: {
       id: user._id,
       name: user.name,
@@ -90,7 +90,6 @@ exports.login = catchAsync(async (req, res, next) => {
   res.json({
     success: true,
     message: "Logged in successfully.",
-    accessToken,
     user: {
       id: user._id,
       name: user.name,
@@ -127,7 +126,8 @@ exports.refreshToken = catchAsync(async (req, res, next) => {
   res.cookie("accessToken", newAccessToken, ACCESS_COOKIE_OPTIONS);
   res.cookie("refreshToken", newRefreshToken, REFRESH_COOKIE_OPTIONS);
 
-  res.json({ success: true, accessToken: newAccessToken });
+  // Do not send accessToken in JSON; cookie contains it
+  res.json({ success: true });
 });
 
 // ── Logout ────────────────────────────────────────────────────────
