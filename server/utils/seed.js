@@ -5,7 +5,7 @@ const Hotel    = require("../models/Hotel");
 const Room     = require("../models/Room");
 const User     = require("../models/User");
 
-const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/restrip";
+const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/havenstay";
 
 const HOTELS_DATA = [
   {
@@ -407,7 +407,7 @@ async function seed() {
     // Seed admin user
     await User.create({
       name: "Admin",
-      email: "admin@restrip.com",
+      email: "admin@havenstay.com",
       password: "Admin@123",
       role: "admin",
     });
@@ -415,12 +415,12 @@ async function seed() {
     // Seed demo user
     await User.create({
       name: "Demo User",
-      email: "demo@restrip.com",
+      email: "demo@havenstay.com",
       password: "Demo@1234",
       role: "user",
     });
 
-    console.log("👤 Created admin (admin@restrip.com / Admin@123) and demo user (demo@restrip.com / Demo@1234)");
+    console.log("👤 Created admin (admin@havenstay.com / Admin@123) and demo user (demo@havenstay.com / Demo@1234)");
     console.log("✅ Seed complete!");
     process.exit(0);
   } catch (err) {

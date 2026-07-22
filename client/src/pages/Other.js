@@ -15,14 +15,14 @@ export function BookingConfirm() {
   }
 
   return (
-    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"#111009", paddingTop:80 }}>
-      <div style={{ background:"#1a1610", border:"1px solid rgba(184,148,63,0.2)", maxWidth:520, width:"90%", padding:"56px 48px", textAlign:"center", position:"relative" }}>
+    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--color-bg-secondary)", paddingTop:80 }}>
+      <div style={{ background:"var(--color-bg-secondary)", border:"1px solid var(--color-border)", maxWidth:520, width:"90%", padding:"56px 48px", textAlign:"center", position:"relative" }}>
         <div style={{ position:"absolute", top:-1, left:"50%", transform:"translateX(-50%)", width:80, height:2, background:"#b8943f" }} />
-        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:64, color:"rgba(184,148,63,0.2)", lineHeight:1, marginBottom:4 }}>✦</div>
+        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:64, color:"var(--color-border)", lineHeight:1, marginBottom:4 }}>✦</div>
         <div className="section-tag" style={{ justifyContent:"center", marginBottom:12 }}><span className="gold-line" />Confirmed</div>
-        <h2 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:36, fontWeight:300, color:"#f5efe6", marginBottom:6 }}>Your Suite Awaits</h2>
-        <p style={{ color:"#9a8e7e", fontSize:13, marginBottom:36 }}>Your reservation has been secured successfully.</p>
-        <div style={{ border:"1px solid rgba(184,148,63,0.2)", padding:"24px 28px", textAlign:"left", marginBottom:32 }}>
+        <h2 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:36, fontWeight:300, color:"var(--color-text-primary)", marginBottom:6 }}>Your Suite Awaits</h2>
+        <p style={{ color:"var(--color-text-muted)", fontSize:13, marginBottom:36 }}>Your reservation has been secured successfully.</p>
+        <div style={{ border:"1px solid var(--color-border)", padding:"24px 28px", textAlign:"left", marginBottom:32 }}>
           <div style={{ display:"flex", justifyContent:"space-between", marginBottom:16, paddingBottom:16, borderBottom:"1px solid rgba(184,148,63,0.15)" }}>
             <span style={{ fontSize:10, letterSpacing:2, color:"#b8943f", textTransform:"uppercase" }}>Booking Reference</span>
             <span style={{ fontFamily:"monospace", fontWeight:700, color:"#d4af6a", fontSize:13 }}>{booking._id?.slice(-10).toUpperCase()}</span>
@@ -37,8 +37,8 @@ export function BookingConfirm() {
             ["Total",     fmt(booking.totalPrice)],
           ].map(([k,v]) => (
             <div key={k} style={{ display:"flex", justifyContent:"space-between", padding:"8px 0", borderBottom:"1px solid rgba(184,148,63,0.07)", fontSize:13 }}>
-              <span style={{ color:"#9a8e7e" }}>{k}</span>
-              <span style={{ color: k==="Total"?"#d4af6a":"#f5efe6", fontWeight: k==="Total"?600:400, fontFamily: k==="Total"?"'Cormorant Garamond',serif":"inherit", fontSize: k==="Total"?18:13 }}>{v}</span>
+              <span style={{ color:"var(--color-text-muted)" }}>{k}</span>
+              <span style={{ color: k==="Total"?"#d4af6a":"var(--color-text-primary)", fontWeight: k==="Total"?600:400, fontFamily: k==="Total"?"'Cormorant Garamond',serif":"inherit", fontSize: k==="Total"?18:13 }}>{v}</span>
             </div>
           ))}
         </div>
@@ -64,10 +64,10 @@ export function MyBookings() {
   };
 
   return (
-    <div style={{ minHeight:"100vh", paddingTop:80, background:"#0a0806" }}>
-      <div style={{ background:"#111009", padding:"56px 64px 40px", borderBottom:"1px solid rgba(184,148,63,0.2)" }}>
+    <div style={{ minHeight:"100vh", paddingTop:80, background:"var(--color-bg-primary)" }}>
+      <div style={{ background:"var(--color-bg-secondary)", padding:"56px 64px 40px", borderBottom:"1px solid var(--color-border)" }}>
         <div className="section-tag" style={{ marginBottom:12 }}><span className="gold-line" />Your Journey</div>
-        <h1 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"4rem", fontWeight:300, color:"#f5efe6" }}>
+        <h1 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"4rem", fontWeight:300, color:"var(--color-text-primary)" }}>
           My <em style={{ fontWeight:600, color:"#d4af6a" }}>Reservations</em>
         </h1>
       </div>
@@ -77,21 +77,21 @@ export function MyBookings() {
           <div style={{ textAlign:"center", padding:"100px 0" }}>
             <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:80, color:"rgba(184,148,63,0.12)", lineHeight:1, marginBottom:16 }}>✦</div>
             <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:32, color:"#ede4d6", marginBottom:12 }}>No reservations yet</h3>
-            <p style={{ color:"#9a8e7e", fontSize:13 }}>Your extraordinary stays await discovery.</p>
+            <p style={{ color:"var(--color-text-muted)", fontSize:13 }}>Your extraordinary stays await discovery.</p>
           </div>
         )}
         {data.map(b => (
-          <div key={b._id} className="d-flex-mobile-col" style={{ border:"1px solid rgba(184,148,63,0.2)", marginBottom:3, display:"flex", overflow:"hidden", background:"#111009" }}>
+          <div key={b._id} className="d-flex-mobile-col" style={{ border:"1px solid var(--color-border)", marginBottom:3, display:"flex", overflow:"hidden", background:"var(--color-bg-secondary)" }}>
             <img className="w-mobile-100 h-mobile-auto" src={b.hotelId?.photos?.[0]} alt="" style={{ width:200, height:160, objectFit:"cover", flexShrink:0 }} />
             <div className="room-info" style={{ padding:"24px 32px", flex:1, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div>
-                <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:24, fontWeight:600, color:"#f5efe6", marginBottom:4 }}>{b.hotelId?.name}</h3>
-                <p style={{ color:"#9a8e7e", fontSize:12, marginBottom:16 }}>{b.roomId?.title} · {b.hotelId?.city}</p>
+                <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:24, fontWeight:600, color:"var(--color-text-primary)", marginBottom:4 }}>{b.hotelId?.name}</h3>
+                <p style={{ color:"var(--color-text-muted)", fontSize:12, marginBottom:16 }}>{b.roomId?.title} · {b.hotelId?.city}</p>
                 <div style={{ display:"flex", gap:24, fontSize:12 }}>
                   {[["Arrival",new Date(b.checkIn).toLocaleDateString()],["Departure",new Date(b.checkOut).toLocaleDateString()],["Guests",b.guests],["Nights",b.nights]].map(([k,v]) => (
                     <div key={k}>
                       <div style={{ fontSize:9, letterSpacing:2, color:"#b8943f", textTransform:"uppercase", marginBottom:3 }}>{k}</div>
-                      <div style={{ color:"#f5efe6", fontWeight:500 }}>{v}</div>
+                      <div style={{ color:"var(--color-text-primary)", fontWeight:500 }}>{v}</div>
                     </div>
                   ))}
                 </div>
@@ -333,15 +333,15 @@ export function Admin() {
   ];
 
   return (
-    <div style={{ minHeight:"100vh", paddingTop:80, background:"#0a0806" }}>
-      <div style={{ background:"#111009", padding:"56px 64px 0", borderBottom:"1px solid rgba(184,148,63,0.2)" }}>
+    <div style={{ minHeight:"100vh", paddingTop:80, background:"var(--color-bg-primary)" }}>
+      <div style={{ background:"var(--color-bg-secondary)", padding:"56px 64px 0", borderBottom:"1px solid var(--color-border)" }}>
         <div className="section-tag" style={{ marginBottom:12 }}><span className="gold-line" />Management</div>
-        <h1 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"4rem", fontWeight:300, color:"#f5efe6", marginBottom:32 }}>
+        <h1 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"4rem", fontWeight:300, color:"var(--color-text-primary)", marginBottom:32 }}>
           Admin <em style={{ fontWeight:600, color:"#d4af6a" }}>Console</em>
         </h1>
         <div style={{ display:"flex", gap:3 }}>
           {["overview","bookings","hotels","rooms"].map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{ padding:"12px 32px", background: tab===t?"#b8943f":"transparent", color: tab===t?"#0a0806":"#9a8e7e", border:"1px solid", borderColor: tab===t?"#b8943f":"rgba(184,148,63,0.2)", cursor:"pointer", fontSize:10, fontWeight:600, letterSpacing:2, textTransform:"uppercase", fontFamily:"'Jost',sans-serif" }}>{t}</button>
+            <button key={t} onClick={() => setTab(t)} style={{ padding:"12px 32px", background: tab===t?"#b8943f":"transparent", color: tab===t?"var(--color-bg-primary)":"var(--color-text-muted)", border:"1px solid", borderColor: tab===t?"#b8943f":"var(--color-border)", cursor:"pointer", fontSize:10, fontWeight:600, letterSpacing:2, textTransform:"uppercase", fontFamily:"'Jost',sans-serif" }}>{t}</button>
           ))}
         </div>
       </div>
@@ -354,16 +354,16 @@ export function Admin() {
                 <div key={label} className="stat-card">
                   <div style={{ fontSize:28, marginBottom:12 }}>{icon}</div>
                   <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:34, fontWeight:600, color:"#d4af6a" }}>{loading?"…":value}</div>
-                  <div style={{ fontSize:10, letterSpacing:2, color:"#9a8e7e", textTransform:"uppercase", marginTop:4 }}>{label}</div>
+                  <div style={{ fontSize:10, letterSpacing:2, color:"var(--color-text-muted)", textTransform:"uppercase", marginTop:4 }}>{label}</div>
                 </div>
               ))}
             </div>
-            <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:26, color:"#f5efe6", marginBottom:20 }}>Recent <em style={{ color:"#d4af6a" }}>Bookings</em></h3>
+            <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:26, color:"var(--color-text-primary)", marginBottom:20 }}>Recent <em style={{ color:"#d4af6a" }}>Bookings</em></h3>
             {loading ? <Spinner /> : bookings.slice(0,8).map(b => (
               <div key={b._id} className="table-row" style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"16px 0" }}>
                 <div>
-                  <div style={{ fontWeight:500, fontSize:14, color:"#f5efe6" }}>{b.hotelId?.name} · {b.roomId?.title}</div>
-                  <div style={{ fontSize:11, color:"#9a8e7e", marginTop:2 }}>{b.userId?.email} · {new Date(b.checkIn).toLocaleDateString()} → {new Date(b.checkOut).toLocaleDateString()}</div>
+                  <div style={{ fontWeight:500, fontSize:14, color:"var(--color-text-primary)" }}>{b.hotelId?.name} · {b.roomId?.title}</div>
+                  <div style={{ fontSize:11, color:"var(--color-text-muted)", marginTop:2 }}>{b.userId?.email} · {new Date(b.checkIn).toLocaleDateString()} → {new Date(b.checkOut).toLocaleDateString()}</div>
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:16 }}>
                   <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, color:"#d4af6a" }}>{fmt(b.totalPrice)}</span>
@@ -379,7 +379,7 @@ export function Admin() {
             {loading ? <Spinner /> : (
               <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
                 <thead>
-                  <tr style={{ borderBottom:"1px solid rgba(184,148,63,0.2)" }}>
+                  <tr style={{ borderBottom:"1px solid var(--color-border)" }}>
                     {["Property","Suite","Guest","Check-in","Check-out","Nights","Total","Status"].map(h => (
                       <th key={h} style={{ padding:"12px 16px", textAlign:"left", fontSize:9, letterSpacing:2, color:"#b8943f", textTransform:"uppercase", fontWeight:600 }}>{h}</th>
                     ))}
@@ -388,9 +388,9 @@ export function Admin() {
                 <tbody>
                   {bookings.map(b => (
                     <tr key={b._id} className="table-row">
-                      <td style={{ padding:"14px 16px", color:"#f5efe6", fontWeight:500 }}>{b.hotelId?.name}</td>
-                      <td style={{ padding:"14px 16px", color:"#9a8e7e" }}>{b.roomId?.title}</td>
-                      <td style={{ padding:"14px 16px", color:"#9a8e7e" }}>{b.userId?.email}</td>
+                      <td style={{ padding:"14px 16px", color:"var(--color-text-primary)", fontWeight:500 }}>{b.hotelId?.name}</td>
+                      <td style={{ padding:"14px 16px", color:"var(--color-text-muted)" }}>{b.roomId?.title}</td>
+                      <td style={{ padding:"14px 16px", color:"var(--color-text-muted)" }}>{b.userId?.email}</td>
                       <td style={{ padding:"14px 16px" }}>{new Date(b.checkIn).toLocaleDateString()}</td>
                       <td style={{ padding:"14px 16px" }}>{new Date(b.checkOut).toLocaleDateString()}</td>
                       <td style={{ padding:"14px 16px", textAlign:"center" }}>{b.nights}</td>
@@ -398,7 +398,7 @@ export function Admin() {
                       <td style={{ padding:"14px 16px" }}><Tag label={b.status.toUpperCase()} color={b.status==="cancelled"?"red":"green"} /></td>
                     </tr>
                   ))}
-                  {bookings.length===0 && <tr><td colSpan={8} style={{ padding:"60px", textAlign:"center", color:"#9a8e7e" }}>No bookings yet</td></tr>}
+                  {bookings.length===0 && <tr><td colSpan={8} style={{ padding:"60px", textAlign:"center", color:"var(--color-text-muted)" }}>No bookings yet</td></tr>}
                 </tbody>
               </table>
             )}
@@ -407,17 +407,17 @@ export function Admin() {
 
         {tab==="hotels" && (
           <div className="grid-mobile-1" style={{ display:"grid", gridTemplateColumns:"1.3fr 1fr", gap:24 }}>
-            <div style={{ border:"1px solid rgba(184,148,63,0.2)", background:"#111009" }}>
+            <div style={{ border:"1px solid var(--color-border)", background:"var(--color-bg-secondary)" }}>
               <div style={{ padding:"20px 24px", borderBottom:"1px solid rgba(184,148,63,0.15)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:28, color:"#f5efe6" }}>Properties</h3>
-                <span style={{ color:"#9a8e7e", fontSize:12 }}>{hotels.length} total</span>
+                <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:28, color:"var(--color-text-primary)" }}>Properties</h3>
+                <span style={{ color:"var(--color-text-muted)", fontSize:12 }}>{hotels.length} total</span>
               </div>
               <div style={{ maxHeight:520, overflowY:"auto" }}>
                 {hotelsLoading ? <Spinner /> : hotels.map((h) => (
                   <div key={h._id} className="table-row" style={{ padding:"18px 24px", display:"flex", justifyContent:"space-between", gap:16 }}>
                     <div>
-                      <div style={{ color:"#f5efe6", fontWeight:600 }}>{h.name}</div>
-                      <div style={{ fontSize:12, color:"#9a8e7e", marginTop:3 }}>{h.city}, {h.country} · {fmt(h.cheapestPrice)}</div>
+                      <div style={{ color:"var(--color-text-primary)", fontWeight:600 }}>{h.name}</div>
+                      <div style={{ fontSize:12, color:"var(--color-text-muted)", marginTop:3 }}>{h.city}, {h.country} · {fmt(h.cheapestPrice)}</div>
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                       <button className="btn-outline" style={{ padding:"7px 14px", fontSize:9 }} onClick={() => editHotel(h)}>Edit</button>
@@ -425,12 +425,12 @@ export function Admin() {
                     </div>
                   </div>
                 ))}
-                {!hotelsLoading && hotels.length===0 && <div style={{ padding:32, color:"#9a8e7e" }}>No hotels found</div>}
+                {!hotelsLoading && hotels.length===0 && <div style={{ padding:32, color:"var(--color-text-muted)" }}>No hotels found</div>}
               </div>
             </div>
 
-            <div style={{ border:"1px solid rgba(184,148,63,0.2)", padding:"26px", background:"#111009" }}>
-              <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:26, color:"#f5efe6", marginBottom:22 }}>
+            <div style={{ border:"1px solid var(--color-border)", padding:"26px", background:"var(--color-bg-secondary)" }}>
+              <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:26, color:"var(--color-text-primary)", marginBottom:22 }}>
                 {editingHotelId ? "Edit Property" : "Add New Property"}
               </h3>
               <div style={{ display:"grid", gap:14 }}>
@@ -471,9 +471,9 @@ export function Admin() {
 
         {tab==="rooms" && (
           <div className="grid-mobile-1" style={{ display:"grid", gridTemplateColumns:"1.2fr 1fr", gap:24 }}>
-            <div style={{ border:"1px solid rgba(184,148,63,0.2)", background:"#111009" }}>
+            <div style={{ border:"1px solid var(--color-border)", background:"var(--color-bg-secondary)" }}>
               <div style={{ padding:"20px 24px", borderBottom:"1px solid rgba(184,148,63,0.15)", display:"flex", justifyContent:"space-between", alignItems:"center", gap:12 }}>
-                <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:28, color:"#f5efe6" }}>Rooms</h3>
+                <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:28, color:"var(--color-text-primary)" }}>Rooms</h3>
                 <select className="input-dark" style={{ maxWidth:360 }} value={selectedHotelId} onChange={async (e) => { const hid = e.target.value; setSelectedHotelId(hid); setRoomForm((prev) => ({ ...prev, hotelId: hid })); await loadRooms(hid); }}>
                   <option value="">Select Hotel</option>
                   {hotels.map((h) => <option key={h._id} value={h._id}>{h.name} · {h.city}</option>)}
@@ -483,8 +483,8 @@ export function Admin() {
                 {roomsLoading ? <Spinner /> : rooms.map((r) => (
                   <div key={r._id} className="table-row" style={{ padding:"18px 24px", display:"flex", justifyContent:"space-between", gap:16 }}>
                     <div>
-                      <div style={{ color:"#f5efe6", fontWeight:600 }}>{r.title}</div>
-                      <div style={{ fontSize:12, color:"#9a8e7e", marginTop:3 }}>${r.price} · {r.maxPeople} guests · Beds {r.beds || 1}</div>
+                      <div style={{ color:"var(--color-text-primary)", fontWeight:600 }}>{r.title}</div>
+                      <div style={{ fontSize:12, color:"var(--color-text-muted)", marginTop:3 }}>${r.price} · {r.maxPeople} guests · Beds {r.beds || 1}</div>
                       <div style={{ fontSize:11, color:"#7f7567", marginTop:4 }}>Room Nos: {(r.roomNumbers || []).map((n) => n.number).join(", ") || "-"}</div>
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -493,12 +493,12 @@ export function Admin() {
                     </div>
                   </div>
                 ))}
-                {!roomsLoading && rooms.length===0 && <div style={{ padding:32, color:"#9a8e7e" }}>No rooms for this hotel</div>}
+                {!roomsLoading && rooms.length===0 && <div style={{ padding:32, color:"var(--color-text-muted)" }}>No rooms for this hotel</div>}
               </div>
             </div>
 
-            <div style={{ border:"1px solid rgba(184,148,63,0.2)", padding:"26px", background:"#111009" }}>
-              <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:26, color:"#f5efe6", marginBottom:22 }}>
+            <div style={{ border:"1px solid var(--color-border)", padding:"26px", background:"var(--color-bg-secondary)" }}>
+              <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:26, color:"var(--color-text-primary)", marginBottom:22 }}>
                 {editingRoomId ? "Edit Room" : "Add New Room"}
               </h3>
               <div style={{ display:"grid", gap:14 }}>

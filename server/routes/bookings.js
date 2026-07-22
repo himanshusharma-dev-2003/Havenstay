@@ -17,12 +17,8 @@ const bookingSchema = Joi.object({
 });
 
 // User routes
-<<<<<<< HEAD
-router.post("/",              verifyToken,              bookingRules, ctrl.createBooking);
-router.post("/:id/verify-payment", verifyToken,                     ctrl.verifyPayment);
-=======
 router.post("/",              verifyToken, validateBody(bookingSchema), ctrl.createBooking);
->>>>>>> 123c77a (chore(prod): production hardening — logging, env validation, cookie-based auth, Joi validation, concurrency tests, CI, Docker)
+router.post("/:id/verify-payment", verifyToken,                     ctrl.verifyPayment);
 router.get( "/my",            verifyToken,                            ctrl.getMyBookings);
 router.get( "/:id",           verifyToken,                            ctrl.getBookingById);
 router.patch("/:id/cancel",   verifyToken,                            ctrl.cancelBooking);

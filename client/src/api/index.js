@@ -1,4 +1,4 @@
-const BASE_URL = process.env.REACT_APP_API_URL || "https://restrip-backend-production.up.railway.app/api";
+const BASE_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : "https://havenstay-backend-production.up.railway.app/api");
 
 // Cookie-based auth: all requests include credentials. Do not rely on client-stored access tokens.
 async function refreshAccessToken() {
@@ -78,43 +78,6 @@ export const bookingsAPI = {
   getById: (id)          => request(`/bookings/${id}`),
   cancel:  (id, reason)  => request(`/bookings/${id}/cancel`, { method: "PATCH", body: JSON.stringify({ reason }) }),
   verifyPayment: (id, data) => request(`/bookings/${id}/verify-payment`, { method: "POST", body: JSON.stringify(data) }),
-  getAll:  (params = {}) => {
-    const qs = new URLSearchParams(params).toString();
-    return request(`/bookings${qs ? "?" + qs : ""}`);
-  },
-};
-export const hotelsAPI = {
-  getAll: (params = {}) => {
-    const qs = new URLSearchParams(params).toString();
-    return request(`/hotels${qs ? "?" + qs : ""}`);
-  },
-  getById:  (id)       => request(`/hotels/${id}`),
-  create:   (data)     => request("/hotels",      { method: "POST",   body: JSON.stringify(data) }),
-  update:   (id, data) => request(`/hotels/${id}`,{ method: "PUT",    body: JSON.stringify(data) }),
-  delete:   (id)       => request(`/hotels/${id}`,{ method: "DELETE" }),
-};
-
-export const roomsAPI = {
-  getByHotel: (hotelId, checkIn, checkOut) => {
-    const p = new URLSearchParams({ hotelId, ...(checkIn && { checkIn }), ...(checkOut && { checkOut }) });
-    return request(`/rooms?${p}`);
-  },
-  getById:          (id)              => request(`/rooms/${id}`),
-  checkAvailability:(id, ci, co)      => request(`/rooms/${id}/availability?checkIn=${ci}&checkOut=${co}`),
-  create:           (data)            => request("/rooms",      { method: "POST",   body: JSON.stringify(data) }),
-  update:           (id, data)        => request(`/rooms/${id}`,{ method: "PUT",    body: JSON.stringify(data) }),
-  delete:           (id)              => request(`/rooms/${id}`,{ method: "DELETE" }),
-};
-
-export const bookingsAPI = {
-  create: (body) =>
-    request("/bookings", { method: "POST", body: JSON.stringify(body) }),
-  getMyBookings: (params = {}) => {
-    const qs = new URLSearchParams(params).toString();
-    return request(`/bookings/my${qs ? "?" + qs : ""}`);
-  },
-  getById: (id)          => request(`/bookings/${id}`),
-  cancel:  (id, reason)  => request(`/bookings/${id}/cancel`, { method: "PATCH", body: JSON.stringify({ reason }) }),
   getAll:  (params = {}) => {
     const qs = new URLSearchParams(params).toString();
     return request(`/bookings${qs ? "?" + qs : ""}`);

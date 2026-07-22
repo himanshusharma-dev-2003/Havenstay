@@ -1,29 +1,48 @@
-const bcrypt        = require("bcryptjs");
-const jwt           = require("jsonwebtoken");
-const { validationResult } = require("express-validator");
-const User          = require("../models/User");
-const { AppError, catchAsync } = require("../utils/errors");
+const bcrypt = require('bcryptjs');
+const jwt    = require('jsonwebtoken');
+const { validationResult } = require('express-validator');
+const User   = require('../models/User');
+const { AppError, catchAsync } = require('../utils/errors');
+const { AUTH } = require('../constants');
+const config = require('../config');
 
-// ── Cookie options ────────────────────────────────────────────────
+/**
+ * Shared secure cookie options for the httpOnly token cookies.
+ *
+ * Using httpOnly prevents client-side JS from accessing the tokens,
+ * mitigating XSS-based token theft. sameSite: 'strict' prevents CSRF.
+ * secure: true in production enforces HTTPS-only transmission.
+ */
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "strict",
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  secure:   config.isProd,
+  sameSite: 'strict',
+  maxAge:   AUTH.REFRESH_COOKIE_MAX_AGE,
 };
 
 const ACCESS_COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "strict",
-  maxAge: 15 * 60 * 1000, // 15 minutes
+  secure:   config.isProd,
+  sameSite: 'strict',
+  maxAge:   AUTH.ACCESS_COOKIE_MAX_AGE,
 };
 
-// ── Register ──────────────────────────────────────────────────────
+/**
+ * POST /api/auth/register
+ *
+ * Creates a new user account. On success, issues both an access token cookie
+ * (15 min) and a refresh token cookie (7 days). The refresh token is stored
+ * as a bcrypt hash in MongoDB — raw tokens are never persisted.
+ *
+ * @body {{ name: string, email: string, password: string }}
+ * @returns {{ success: true, user: { id, name, email, role } }}
+ * @throws {400} Validation errors
+ * @throws {409} Email already registered
+ */
 exports.register = catchAsync(async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    const errorMsg = errors.array()[0].msg || "Validation failed.";
+    const errorMsg = errors.array()[0].msg || 'Validation failed.';
     return res.status(400).json({ success: false, message: errorMsg, errors: errors.array() });
   }
 
@@ -31,7 +50,7 @@ exports.register = catchAsync(async (req, res, next) => {
 
   const existing = await User.findOne({ email: email.toLowerCase() });
   if (existing) {
-    return next(new AppError("An account with this email already exists.", 409));
+    return next(new AppError('An account with this email already exists.', 409));
   }
 
   const user = await User.create({ name, email, password });
@@ -39,110 +58,141 @@ exports.register = catchAsync(async (req, res, next) => {
   const accessToken  = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
 
-  // Store hashed refresh token
+  // Store a bcrypt hash of the refresh token — never the raw token
   user.refreshTokenHash = await bcrypt.hash(refreshToken, 10);
-  user.lastLogin = new Date();
+  user.lastLogin        = new Date();
   await user.save({ validateBeforeSave: false });
 
-  res.cookie("accessToken", accessToken, ACCESS_COOKIE_OPTIONS);
-  res.cookie("refreshToken", refreshToken, REFRESH_COOKIE_OPTIONS);
+  res.cookie('accessToken',  accessToken,  ACCESS_COOKIE_OPTIONS);
+  res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
 
-  // Do not expose tokens in JSON responses — rely on secure httpOnly cookies
   res.status(201).json({
     success: true,
-    message: "Account created successfully.",
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    },
+    message: 'Account created successfully.',
+    user:    { id: user._id, name: user.name, email: user.email, role: user.role },
   });
 });
 
-// ── Login ─────────────────────────────────────────────────────────
+/**
+ * POST /api/auth/login
+ *
+ * Authenticates a user by email + password. Issues fresh token cookies on success.
+ * The deliberate generic error message ("Invalid email or password") prevents
+ * user enumeration attacks.
+ *
+ * @body {{ email: string, password: string }}
+ * @returns {{ success: true, user: { id, name, email, role } }}
+ * @throws {400} Validation errors
+ * @throws {401} Invalid credentials
+ */
 exports.login = catchAsync(async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    const errorMsg = errors.array()[0].msg || "Validation failed.";
+    const errorMsg = errors.array()[0].msg || 'Validation failed.';
     return res.status(400).json({ success: false, message: errorMsg, errors: errors.array() });
   }
 
   const { email, password } = req.body;
 
-  // Explicitly select password field (excluded by default)
-  const user = await User.findOne({ email: email.toLowerCase(), isActive: true }).select("+password +refreshTokenHash");
+  // Explicitly select +password — field is excluded by default for security
+  const user = await User.findOne({ email: email.toLowerCase(), isActive: true })
+    .select('+password +refreshTokenHash');
 
+  // Constant-time comparison via bcrypt prevents timing attacks
   if (!user || !(await user.comparePassword(password))) {
-    return next(new AppError("Invalid email or password.", 401));
+    return next(new AppError('Invalid email or password.', 401));
   }
 
   const accessToken  = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
 
   user.refreshTokenHash = await bcrypt.hash(refreshToken, 10);
-  user.lastLogin = new Date();
+  user.lastLogin        = new Date();
   await user.save({ validateBeforeSave: false });
 
-  res.cookie("accessToken", accessToken, ACCESS_COOKIE_OPTIONS);
-  res.cookie("refreshToken", refreshToken, REFRESH_COOKIE_OPTIONS);
+  res.cookie('accessToken',  accessToken,  ACCESS_COOKIE_OPTIONS);
+  res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
 
   res.json({
     success: true,
-    message: "Logged in successfully.",
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    },
+    message: 'Logged in successfully.',
+    user:    { id: user._id, name: user.name, email: user.email, role: user.role },
   });
 });
 
-// ── Refresh access token ──────────────────────────────────────────
+/**
+ * POST /api/auth/refresh
+ *
+ * Issues a new access + refresh token pair using the refresh token cookie.
+ * Implements refresh token rotation — the old refresh token is invalidated
+ * on each use, preventing replay attacks.
+ *
+ * @cookie refreshToken - httpOnly refresh token
+ * @returns {{ success: true }}
+ * @throws {401} Missing / invalid / revoked refresh token
+ */
 exports.refreshToken = catchAsync(async (req, res, next) => {
   const token = req.cookies?.refreshToken;
-  if (!token) return next(new AppError("No refresh token provided.", 401));
+  if (!token) return next(new AppError('No refresh token provided.', 401));
 
   let decoded;
   try {
-    decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+    decoded = jwt.verify(token, config.jwt.refreshSecret);
   } catch {
-    return next(new AppError("Invalid or expired refresh token.", 401));
+    return next(new AppError('Invalid or expired refresh token.', 401));
   }
 
-  const user = await User.findById(decoded.id).select("+refreshTokenHash");
-  if (!user) return next(new AppError("User not found.", 401));
+  const user = await User.findById(decoded.id).select('+refreshTokenHash');
+  if (!user) return next(new AppError('User not found.', 401));
 
-  const isValid = await bcrypt.compare(token, user.refreshTokenHash || "");
-  if (!isValid) return next(new AppError("Refresh token revoked.", 401));
+  const isValid = await bcrypt.compare(token, user.refreshTokenHash || '');
+  if (!isValid) return next(new AppError('Refresh token revoked.', 401));
 
+  // Rotate tokens — old refresh token is replaced with a new one
   const newAccessToken  = user.generateAccessToken();
   const newRefreshToken = user.generateRefreshToken();
 
   user.refreshTokenHash = await bcrypt.hash(newRefreshToken, 10);
   await user.save({ validateBeforeSave: false });
 
-  res.cookie("accessToken", newAccessToken, ACCESS_COOKIE_OPTIONS);
-  res.cookie("refreshToken", newRefreshToken, REFRESH_COOKIE_OPTIONS);
+  res.cookie('accessToken',  newAccessToken,  ACCESS_COOKIE_OPTIONS);
+  res.cookie('refreshToken', newRefreshToken, REFRESH_COOKIE_OPTIONS);
 
-  // Do not send accessToken in JSON; cookie contains it
   res.json({ success: true });
 });
 
-// ── Logout ────────────────────────────────────────────────────────
+/**
+ * POST /api/auth/logout
+ *
+ * Invalidates the refresh token server-side (nullifies the stored hash)
+ * and clears both cookies from the client.
+ *
+ * @auth Required
+ * @returns {{ success: true, message: string }}
+ */
 exports.logout = catchAsync(async (req, res) => {
   if (req.user?.id) {
+    // Invalidate the stored refresh token hash — the user must re-login
     await User.findByIdAndUpdate(req.user.id, { refreshTokenHash: null });
   }
-  res.clearCookie("accessToken");
-  res.clearCookie("refreshToken");
-  res.json({ success: true, message: "Logged out successfully." });
+  res.clearCookie('accessToken');
+  res.clearCookie('refreshToken');
+  res.json({ success: true, message: 'Logged out successfully.' });
 });
 
-// ── Get current user ──────────────────────────────────────────────
+/**
+ * GET /api/auth/me
+ *
+ * Returns the currently authenticated user's profile.
+ * Sensitive fields (password, refreshTokenHash) are excluded by the User model's
+ * toJSON() override.
+ *
+ * @auth Required
+ * @returns {{ success: true, user: User }}
+ * @throws {404} User not found (should not happen under normal operation)
+ */
 exports.getMe = catchAsync(async (req, res, next) => {
   const user = await User.findById(req.user.id);
-  if (!user) return next(new AppError("User not found.", 404));
+  if (!user) return next(new AppError('User not found.', 404));
   res.json({ success: true, user });
 });

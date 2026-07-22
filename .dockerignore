@@ -1,6 +1,37 @@
+# ── Git ───────────────────────────────────────────────
+.git
+.gitignore
+.github
+
+# ── Dependencies ──────────────────────────────────────
 node_modules
-npm-debug.log
-.DS_Store
-.env
-client/node_modules
 server/node_modules
+client/node_modules
+
+# ── Build outputs ─────────────────────────────────────
+client/build
+dist
+
+# ── Dev & test artifacts ──────────────────────────────
+*.log
+*.test.js
+*.spec.js
+server/tests
+coverage
+.nyc_output
+jest.config.*
+
+# ── Documentation ─────────────────────────────────────
+*.md
+docs
+
+# ── OS / editor ───────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+
+# ── Env / secrets ─────────────────────────────────────
+.env
+.env.*
+!.env.example

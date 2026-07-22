@@ -55,7 +55,7 @@ export default function HotelDetail() {
         key: process.env.REACT_APP_RAZORPAY_KEY_ID || "",
         amount: amount,
         currency: currency,
-        name: "Restrip",
+        name: "HavenStay",
         description: `Booking for ${hotel.name}`,
         image: hotel.photos?.[0],
         order_id: razorpayOrderId,
@@ -99,19 +99,19 @@ export default function HotelDetail() {
   };
 
   if (hotelLoading) return <div style={{ paddingTop:80 }}><Spinner /></div>;
-  if (!hotel)       return <div style={{ paddingTop:140, textAlign:"center", color:"#9a8e7e" }}>Hotel not found.</div>;
+  if (!hotel)       return <div style={{ paddingTop:140, textAlign:"center", color:"var(--color-text-muted)" }}>Hotel not found.</div>;
 
   return (
-    <div style={{ minHeight:"100vh", background:"#0a0806" }}>
+    <div style={{ minHeight:"100vh", background:"var(--color-bg-primary)" }}>
       {/* Hero */}
       <div style={{ position:"relative", height:520, overflow:"hidden" }}>
         <img src={hotel.photos?.[0]} alt={hotel.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-        <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom,rgba(5,4,3,0.4) 0%,rgba(5,4,3,0.88) 100%)" }} />
-        <button onClick={() => navigate("/hotels")} style={{ position:"absolute", top:100, left:64, background:"rgba(10,8,6,0.7)", backdropFilter:"blur(8px)", border:"1px solid rgba(184,148,63,0.3)", color:"#f5efe6", padding:"8px 20px", cursor:"pointer", fontSize:11, letterSpacing:1.5, textTransform:"uppercase" }}>← Back</button>
+        <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom,rgba(13,13,18,0.4) 0%,rgba(13,13,18,0.88) 100%)" }} />
+        <button onClick={() => navigate("/hotels")} style={{ position:"absolute", top:100, left:64, background:"rgba(13,13,18,0.7)", backdropFilter:"blur(8px)", border:"1px solid rgba(184,148,63,0.3)", color:"var(--color-text-primary)", padding:"8px 20px", cursor:"pointer", fontSize:11, letterSpacing:1.5, textTransform:"uppercase" }}>← Back</button>
         <div style={{ position:"absolute", bottom:60, left:64 }}>
           <Tag label={hotel.tag} />
-          <h1 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"clamp(2.5rem,5vw,5rem)", fontWeight:300, color:"#fff", lineHeight:1, margin:"10px 0 8px" }}>{hotel.name}</h1>
-          <div style={{ display:"flex", alignItems:"center", gap:20, color:"#9a8e7e", fontSize:13 }}>
+          <h1 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"clamp(2.5rem,5vw,5rem)", fontWeight:300, color:"var(--color-text-primary)", lineHeight:1, margin:"10px 0 8px" }}>{hotel.name}</h1>
+          <div style={{ display:"flex", alignItems:"center", gap:20, color:"var(--color-text-muted)", fontSize:13 }}>
             <span>📍 {hotel.city}, {hotel.country}</span>
             <Stars rating={hotel.rating} />
             <span>{hotel.rating} ({hotel.reviewCount} reviews)</span>
@@ -121,14 +121,14 @@ export default function HotelDetail() {
 
       <div className="detail-layout" style={{ display:"grid", gridTemplateColumns:"1fr 360px" }}>
         {/* Left */}
-        <div className="detail-main" style={{ padding:"56px 64px", borderRight:"1px solid rgba(184,148,63,0.2)" }}>
-          <p style={{ color:"#9a8e7e", fontSize:15, lineHeight:1.9, marginBottom:36, maxWidth:600 }}>{hotel.description}</p>
+        <div className="detail-main" style={{ padding:"56px 64px", borderRight:"1px solid var(--color-border)" }}>
+          <p style={{ color:"var(--color-text-muted)", fontSize:15, lineHeight:1.9, marginBottom:36, maxWidth:600 }}>{hotel.description}</p>
           <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:48 }}>
             {hotel.amenities?.map(a => <span key={a} className="amenity-pill">{a}</span>)}
           </div>
           <div style={{ height:1, background:"linear-gradient(to right,transparent,#b8943f,transparent)", margin:"0 0 40px" }} />
 
-          <h2 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:32, fontWeight:300, color:"#f5efe6", marginBottom:24 }}>
+          <h2 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:32, fontWeight:300, color:"var(--color-text-primary)", marginBottom:24 }}>
             Suite <em style={{ fontWeight:600, color:"#d4af6a" }}>Collection</em>
           </h2>
 
@@ -145,13 +145,13 @@ export default function HotelDetail() {
                     alt={room.title} style={{ width:160, height:120, objectFit:"cover", flexShrink:0 }} />
                   <div className="room-info" style={{ padding:"20px 24px", flex:1, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                     <div>
-                      <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:600, color:"#f5efe6", marginBottom:6 }}>{room.title}</h3>
-                      <p style={{ color:"#9a8e7e", fontSize:12, letterSpacing:0.5 }}>Up to {room.maxPeople} guests · {room.beds} bed{room.beds>1?"s":""}</p>
+                      <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:600, color:"var(--color-text-primary)", marginBottom:6 }}>{room.title}</h3>
+                      <p style={{ color:"var(--color-text-muted)", fontSize:12, letterSpacing:0.5 }}>Up to {room.maxPeople} guests · {room.beds} bed{room.beds>1?"s":""}</p>
                       {unavailable && <p style={{ color:"#ef9a9a", fontSize:11, marginTop:4 }}>Not available for selected dates</p>}
                     </div>
                     <div className="room-price" style={{ textAlign:"right" }}>
                       <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:26, fontWeight:600, color:"#d4af6a" }}>{fmt(room.price)}</div>
-                      <div style={{ fontSize:10, color:"#9a8e7e", letterSpacing:1 }}>PER NIGHT</div>
+                      <div style={{ fontSize:10, color:"var(--color-text-muted)", letterSpacing:1 }}>PER NIGHT</div>
                     </div>
                   </div>
                   {selRoom?._id === room._id && <div style={{ width:4, background:"#b8943f", flexShrink:0 }} />}
@@ -162,9 +162,9 @@ export default function HotelDetail() {
         </div>
 
         {/* Booking panel */}
-        <div className="detail-sidebar" style={{ padding:"56px 40px", background:"#111009", position:"sticky", top:80, height:"fit-content" }}>
+        <div className="detail-sidebar" style={{ padding:"56px 40px", background:"var(--color-bg-secondary)", position:"sticky", top:80, height:"fit-content" }}>
           <div className="section-tag" style={{ marginBottom:16 }}><span className="gold-line" />Reserve</div>
-          <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:28, fontWeight:300, color:"#f5efe6", marginBottom:28 }}>Your Stay</h3>
+          <h3 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:28, fontWeight:300, color:"var(--color-text-primary)", marginBottom:28 }}>Your Stay</h3>
 
           {[{ label:"Arrival", key:"checkin" },{ label:"Departure", key:"checkout" }].map(({ label,key }) => (
             <div key={key} style={{ marginBottom:20 }}>
@@ -180,17 +180,17 @@ export default function HotelDetail() {
           </div>
 
           {selRoom && nights > 0 && (
-            <div style={{ border:"1px solid rgba(184,148,63,0.2)", padding:"20px", marginBottom:24 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8, fontSize:13, color:"#9a8e7e" }}>
+            <div style={{ border:"1px solid var(--color-border)", padding:"20px", marginBottom:24 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8, fontSize:13, color:"var(--color-text-muted)" }}>
                 <span>{fmt(selRoom.price)} × {nights} nights</span>
-                <span style={{ color:"#f5efe6" }}>{fmt(selRoom.price * nights)}</span>
+                <span style={{ color:"var(--color-text-primary)" }}>{fmt(selRoom.price * nights)}</span>
               </div>
-              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:12, fontSize:13, color:"#9a8e7e" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:12, fontSize:13, color:"var(--color-text-muted)" }}>
                 <span>Taxes & service (12%)</span>
-                <span style={{ color:"#f5efe6" }}>{fmt(Math.round(selRoom.price * nights * 0.12))}</span>
+                <span style={{ color:"var(--color-text-primary)" }}>{fmt(Math.round(selRoom.price * nights * 0.12))}</span>
               </div>
-              <div style={{ borderTop:"1px solid rgba(184,148,63,0.2)", paddingTop:12, display:"flex", justifyContent:"space-between" }}>
-                <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, color:"#f5efe6" }}>Total</span>
+              <div style={{ borderTop:"1px solid var(--color-border)", paddingTop:12, display:"flex", justifyContent:"space-between" }}>
+                <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:20, color:"var(--color-text-primary)" }}>Total</span>
                 <span style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:24, fontWeight:600, color:"#d4af6a" }}>{fmt(Math.round(selRoom.price * nights * 1.12))}</span>
               </div>
             </div>
@@ -200,7 +200,7 @@ export default function HotelDetail() {
             disabled={booking} onClick={handleBook}>
             {booking ? "Processing..." : !user ? "Sign In to Reserve" : selRoom ? "Confirm Reservation" : "Select a Suite"}
           </button>
-          <div style={{ marginTop:16, textAlign:"center", fontSize:11, color:"#9a8e7e" }}>Free cancellation within 24 hours</div>
+          <div style={{ marginTop:16, textAlign:"center", fontSize:11, color:"var(--color-text-muted)" }}>Free cancellation within 24 hours</div>
         </div>
       </div>
 

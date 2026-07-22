@@ -8,6 +8,7 @@ import HotelDetail from "./pages/HotelDetail";
 import { AuthPage } from "./pages/Auth";
 import { BookingConfirm, MyBookings, Admin } from "./pages/Other";
 import About from "./pages/About";
+import CustomCursor from "./components/CustomCursor";
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
@@ -20,6 +21,7 @@ function ProtectedRoute({ children, adminOnly = false }) {
 function AppRoutes() {
   return (
     <>
+      <CustomCursor />
       <style>{CSS}</style>
       <Navbar />
       <Routes>
