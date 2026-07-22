@@ -26,16 +26,16 @@ export function AuthPage() {
 
   return (
     <div className="d-flex-mobile-col" style={{ minHeight:"100vh", display:"flex" }}>
-      <div className="p-mobile-20" style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:60, background:"#111009" }}>
+      <div className="p-mobile-20" style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:60, background:"var(--color-bg-secondary)" }}>
         <div style={{ width:"100%", maxWidth:400 }}>
           <div style={{ marginBottom:40 }}>
-            <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:42, fontWeight:300, color:"#f5efe6", lineHeight:1 }}>{mode==="login"?"Welcome":"Join Us"}</div>
+            <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:42, fontWeight:300, color:"var(--color-text-primary)", lineHeight:1 }}>{mode==="login"?"Welcome":"Join Us"}</div>
             <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:42, fontWeight:600, color:"#d4af6a", lineHeight:1 }}>{mode==="login"?"Back.":"Today."}</div>
-            <p style={{ color:"#9a8e7e", fontSize:13, marginTop:14 }}>{mode==="login"?"Sign in to access your reservations.":"Create your account for curated luxury experiences."}</p>
+            <p style={{ color:"var(--color-text-muted)", fontSize:13, marginTop:14 }}>{mode==="login"?"Sign in to access your reservations.":"Create your account for curated luxury experiences."}</p>
           </div>
-          <div style={{ background:"rgba(184,148,63,0.08)", border:"1px solid rgba(184,148,63,0.2)", padding:"12px 16px", marginBottom:24, fontSize:12, color:"#b8943f" }}>
-            <strong>Demo admin:</strong> admin@restrip.com / Admin@123<br />
-            <strong>Demo user:</strong> demo@restrip.com / Demo@1234
+          <div style={{ background:"rgba(184,148,63,0.08)", border:"1px solid var(--color-border)", padding:"12px 16px", marginBottom:24, fontSize:12, color:"#b8943f" }}>
+            <strong>Demo admin:</strong> admin@havenstay.com / Admin@123<br />
+            <strong>Demo user:</strong> demo@havenstay.com / Demo@1234
           </div>
           {mode==="register" && (
             <div style={{ marginBottom:16 }}>
@@ -56,8 +56,8 @@ export function AuthPage() {
           <button className="btn-primary" style={{ width:"100%", padding:16, marginTop:8 }} disabled={busy} onClick={handle}>
             {busy ? "Please wait..." : mode==="login" ? "Sign In" : "Create Account"}
           </button>
-          <p style={{ textAlign:"center", marginTop:20, fontSize:12, color:"#9a8e7e" }}>
-            {mode==="login" ? "New to Restrip? " : "Already a member? "}
+          <p style={{ textAlign:"center", marginTop:20, fontSize:12, color:"var(--color-text-muted)" }}>
+            {mode==="login" ? "New to HavenStay? " : "Already a member? "}
             <span onClick={() => { setMode(m => m==="login"?"register":"login"); setError(""); }}
               style={{ color:"#b8943f", cursor:"pointer" }}>
               {mode==="login" ? "Create account" : "Sign in"}
@@ -67,11 +67,11 @@ export function AuthPage() {
       </div>
       <div className="hide-mobile" style={{ flex:1, position:"relative", overflow:"hidden" }}>
         <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1000&q=85" alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-        <div style={{ position:"absolute", inset:0, background:"linear-gradient(to right,rgba(10,8,6,0.5),rgba(10,8,6,0.1))" }} />
+        <div style={{ position:"absolute", inset:0, background:"linear-gradient(to right,rgba(13,13,18,0.5),rgba(13,13,18,0.1))" }} />
         <div style={{ position:"absolute", bottom:64, left:56, right:56 }}>
           <div style={{ width:40, height:1, background:"#b8943f", marginBottom:16 }} />
-          <blockquote style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:26, fontStyle:"italic", color:"#fff", lineHeight:1.4, textShadow:"0 2px 16px rgba(0,0,0,0.5)" }}>
-            "Not all those who wander are lost — some are simply loyal Restrip members."
+          <blockquote style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:26, fontStyle:"italic", color:"var(--color-text-primary)", lineHeight:1.4, textShadow:"0 2px 16px rgba(0,0,0,0.5)" }}>
+            "Not all those who wander are lost — some are simply loyal HavenStay members."
           </blockquote>
         </div>
       </div>

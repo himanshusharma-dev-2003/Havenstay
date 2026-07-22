@@ -1,7 +1,7 @@
 {
-  "name": "restrip-backend",
+  "name": "havenstay-backend",
   "version": "1.0.0",
-  "description": "Restrip Luxury Hotel Booking Platform - REST API",
+  "description": "HavenStay Luxury Hotel Booking Platform - REST API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -23,16 +23,13 @@
     "mongoose": "^8.0.3",
     "morgan": "^1.10.0",
     "node-cache": "^5.1.2",
-<<<<<<< HEAD
     "razorpay": "^2.9.6",
-=======
     "pino": "^8.20.0",
     "pino-http": "^8.0.0",
     "uuid": "^9.0.0",
     "joi": "^17.9.2",
->>>>>>> 123c77a (chore(prod): production hardening — logging, env validation, cookie-based auth, Joi validation, concurrency tests, CI, Docker)
-    "restrip": "file:..",
-    "restrip-client": "file:../client"
+    "havenstay": "file:..",
+    "havenstay-client": "file:../client"
   },
   "devDependencies": {
     "jest": "^29.6.1",

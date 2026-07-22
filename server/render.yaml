@@ -1,6 +1,6 @@
 ﻿services:
   - type: web
-    name: restrip-backend
+    name: havenstay-backend
     env: node
     region: oregon
     plan: free

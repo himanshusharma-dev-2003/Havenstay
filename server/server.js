@@ -1,145 +1,145 @@
-// Load & validate environment early
-const env = require("./env");
+// Load & validate environment variables early — will exit if required vars are missing
+const env = require('./env');
 
-const express = require("express");
-const helmet = require("helmet");
-const cors = require("cors");
-const compression = require("compression");
-const cookieParser = require("cookie-parser");
-const morgan = require("morgan");
-const rateLimit = require("express-rate-limit");
+const express      = require('express');
+const helmet       = require('helmet');
+const cors         = require('cors');
+const compression  = require('compression');
+const cookieParser = require('cookie-parser');
+const morgan       = require('morgan');
+const rateLimit    = require('express-rate-limit');
 
-const { httpLogger, logger } = require("./logger");
+const { httpLogger, logger } = require('./logger');
+const config       = require('./config');
+const errorHandler = require('./middleware/errorHandler');
 
-const authRoutes    = require("./routes/auth");
-const hotelRoutes   = require("./routes/hotels");
-const roomRoutes    = require("./routes/rooms");
-const bookingRoutes = require("./routes/bookings");
+const authRoutes    = require('./routes/auth');
+const hotelRoutes   = require('./routes/hotels');
+const roomRoutes    = require('./routes/rooms');
+const bookingRoutes = require('./routes/bookings');
 
 const app = express();
 
-// Attach structured request logger (adds req.id)
+// ── Request ID + structured logging ──────────────────────────────
+// Attaches a unique request ID to every incoming request via pino-http.
+// The ID is forwarded in the X-Request-Id response header for client-side
+// correlation and distributed tracing.
 app.use(httpLogger);
-// Expose request id to downstream middleware/clients
 app.use((req, res, next) => {
   res.setHeader('X-Request-Id', req.id);
   next();
 });
 
-// ── Security middleware ───────────────────────────────────────────
+// ── Security headers ──────────────────────────────────────────────
+// helmet() sets ~14 security-related HTTP headers (CSP, HSTS, etc.)
 app.use(helmet());
+
 const allowedOrigins = [
-  process.env.CLIENT_URL,
-  "http://localhost:3000",
+  config.clientUrl,
+  'http://localhost:3000',
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)) {
-      return callback(null, true);
-    }
-    return callback(new Error("CORS blocked for this origin."));
+    // Allow server-to-server requests (no Origin header) and approved origins
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    // Allow Vercel preview deployment URLs (*.vercel.app)
+    if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)) return callback(null, true);
+    return callback(new Error('CORS: origin not allowed.'));
   },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials:    true,
+  methods:        ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 // ── General middleware ────────────────────────────────────────────
-app.use(compression());
+app.use(compression());       // Brotli/gzip response compression
 app.use(cookieParser());
-app.use(express.json({ limit: "10kb" }));
+app.use(express.json({ limit: '10kb' }));         // Prevent large-payload DoS
 app.use(express.urlencoded({ extended: true }));
 
-if (process.env.NODE_ENV === "development") {
-  app.use(morgan("dev"));
+if (config.isDev) {
+  app.use(morgan('dev')); // Concise colourised request logging in development
 }
 
 // ── Rate limiting ─────────────────────────────────────────────────
+// Auth endpoints get a stricter limit to slow brute-force / credential stuffing.
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 min
-  max: 20,
-  message: { success: false, message: "Too many requests, please try again later." },
+  windowMs:       15 * 60 * 1000, // 15 minutes
+  max:            20,
+  message:        { success: false, message: 'Too many requests. Please try again later.' },
   standardHeaders: true,
-  legacyHeaders: false,
+  legacyHeaders:   false,
 });
 
+// General API rate limit — 120 req/min covers normal usage with headroom
 const apiLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 min
-  max: 120,
-  message: { success: false, message: "Rate limit exceeded." },
+  windowMs: 60 * 1000,
+  max:      120,
+  message:  { success: false, message: 'Rate limit exceeded.' },
 });
 
-app.use("/api/auth", authLimiter);
-app.use("/api", apiLimiter);
+app.use('/api/auth', authLimiter);
+app.use('/api',      apiLimiter);
 
 // ── Routes ────────────────────────────────────────────────────────
-app.use("/api/auth",     authRoutes);
-app.use("/api/hotels",   hotelRoutes);
-app.use("/api/rooms",    roomRoutes);
-app.use("/api/bookings", bookingRoutes);
+app.use('/api/auth',     authRoutes);
+app.use('/api/hotels',   hotelRoutes);
+app.use('/api/rooms',    roomRoutes);
+app.use('/api/bookings', bookingRoutes);
 
 // ── Health check ──────────────────────────────────────────────────
-app.get("/api/health", (req, res) => {
+// Simple liveness probe — used by Docker HEALTHCHECK and cloud platform monitors.
+app.get('/api/health', (req, res) => {
   res.json({
-    success: true,
-    status: "OK",
-    environment: process.env.NODE_ENV,
-    timestamp: new Date().toISOString(),
+    success:     true,
+    status:      'OK',
+    environment: config.nodeEnv,
+    timestamp:   new Date().toISOString(),
   });
 });
 
 // ── 404 handler ───────────────────────────────────────────────────
 app.use((req, res) => {
-  res.status(404).json({ success: false, message: `Route ${req.method} ${req.originalUrl} not found.` });
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.method} ${req.originalUrl} not found.`,
+  });
 });
 
 // ── Global error handler ──────────────────────────────────────────
-app.use((err, req, res, next) => {
-  // Structured logging
-  logger.error({ err, path: req.path, method: req.method, reqId: req.id }, err.message || 'Unhandled error');
+// Must be last — Express identifies error-handling middleware by its 4-argument signature.
+app.use(errorHandler);
 
-  const statusCode = err.statusCode || 500;
-  const payload = {
-    success: false,
-    message: err.isOperational ? err.message : 'Internal server error',
-  };
-  if (process.env.NODE_ENV === 'development') payload.stack = err.stack;
-
-  res.status(statusCode).json(payload);
-});
-
-// Export app for tests and other runners. Do NOT connect to DB here; call start() when launching normally.
+// ── Export for testing ────────────────────────────────────────────
+// Tests import `app` directly and manage their own mongoose connection.
 module.exports = app;
 
-// Start server if invoked directly
+// ── Bootstrap (only when run directly, not when required by tests) ─
 if (require.main === module) {
   const mongoose = require('mongoose');
 
   mongoose
-    .connect(env.mongoUri)
+    .connect(config.mongoUri)
     .then(() => {
       logger.info('✅ MongoDB connected');
 
-      const PORT = process.env.PORT || 5000;
-      const server = app.listen(env.port || PORT, () => {
-        logger.info(`🚀 Restrip API running on http://localhost:${env.port || PORT}`);
-        logger.info(`📋 Health check: http://localhost:${env.port || PORT}/api/health`);
+      const server = app.listen(config.port, () => {
+        logger.info(`🚀 HavenStay API running  →  http://localhost:${config.port}`);
+        logger.info(`📋 Health check           →  http://localhost:${config.port}/api/health`);
       });
 
-      // Graceful shutdown
+      // ── Graceful shutdown ────────────────────────────────────────
+      // Allows in-flight requests to complete before the process exits.
       const shutdown = async (signal) => {
         try {
-          logger.info(`${signal} received: closing HTTP server and MongoDB connection...`);
+          logger.info(`${signal} received — shutting down gracefully…`);
           server.close(() => logger.info('HTTP server closed'));
           await mongoose.disconnect();
           logger.info('MongoDB disconnected');
           process.exit(0);
         } catch (err) {
-          logger.error('Error during shutdown', err);
+          logger.error({ err }, 'Error during graceful shutdown');
           process.exit(1);
         }
       };
@@ -148,131 +148,7 @@ if (require.main === module) {
       process.on('SIGINT',  () => shutdown('SIGINT'));
     })
     .catch((err) => {
-      logger.error('❌ MongoDB connection failed:', err.message || err);
+      logger.error({ err }, '❌ MongoDB connection failed');
       process.exit(1);
     });
 }
-
-
-// ── Security middleware ───────────────────────────────────────────
-app.use(helmet());
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-  "http://localhost:3000",
-].filter(Boolean);
-
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow non-browser tools (no Origin header) and explicitly approved origins.
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    // Allow Vercel preview/production deployment URLs.
-    if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)) {
-      return callback(null, true);
-    }
-
-    return callback(new Error("CORS blocked for this origin."));
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
-
-// ── General middleware ────────────────────────────────────────────
-app.use(compression());
-app.use(cookieParser());
-app.use(express.json({ limit: "10kb" }));
-app.use(express.urlencoded({ extended: true }));
-
-if (process.env.NODE_ENV === "development") {
-  app.use(morgan("dev"));
-}
-
-// ── Rate limiting ─────────────────────────────────────────────────
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 min
-  max: 20,
-  message: { success: false, message: "Too many requests, please try again later." },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-const apiLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 min
-  max: 120,
-  message: { success: false, message: "Rate limit exceeded." },
-});
-
-app.use("/api/auth", authLimiter);
-app.use("/api", apiLimiter);
-
-// ── Routes ────────────────────────────────────────────────────────
-app.use("/api/auth",     authRoutes);
-app.use("/api/hotels",   hotelRoutes);
-app.use("/api/rooms",    roomRoutes);
-app.use("/api/bookings", bookingRoutes);
-
-// ── Health check ──────────────────────────────────────────────────
-app.get("/api/health", (req, res) => {
-  res.json({
-    success: true,
-    status: "OK",
-    environment: process.env.NODE_ENV,
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// ── 404 handler ───────────────────────────────────────────────────
-app.use((req, res) => {
-  res.status(404).json({ success: false, message: `Route ${req.method} ${req.originalUrl} not found.` });
-});
-
-// ── Global error handler ──────────────────────────────────────────
-app.use((err, req, res, next) => {
-  console.error(`[ERROR] ${err.stack}`);
-  const statusCode = err.statusCode || 500;
-  res.status(statusCode).json({
-    success: false,
-    message: err.message || "Internal server error",
-    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
-  });
-});
-
-// ── Database + Start ──────────────────────────────────────────────
-const PORT = process.env.PORT || 5000;
-
-mongoose
-  .connect(env.mongoUri)
-  .then(() => {
-    logger.info('✅ MongoDB connected');
-
-    const server = app.listen(env.port || PORT, () => {
-      logger.info(`🚀 Restrip API running on http://localhost:${env.port || PORT}`);
-      logger.info(`📋 Health check: http://localhost:${env.port || PORT}/api/health`);
-    });
-
-    // Graceful shutdown
-    const shutdown = async (signal) => {
-      try {
-        logger.info(`${signal} received: closing HTTP server and MongoDB connection...`);
-        server.close(() => logger.info('HTTP server closed'));
-        await mongoose.disconnect();
-        logger.info('MongoDB disconnected');
-        process.exit(0);
-      } catch (err) {
-        logger.error('Error during shutdown', err);
-        process.exit(1);
-      }
-    };
-
-    process.on('SIGTERM', () => shutdown('SIGTERM'));
-    process.on('SIGINT',  () => shutdown('SIGINT'));
-  })
-  .catch((err) => {
-    logger.error('❌ MongoDB connection failed:', err.message || err);
-    process.exit(1);
-  });
-
-module.exports = app;

@@ -10,7 +10,7 @@ const required = [
 if (process.env.NODE_ENV === 'test') {
   process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'test_access_secret';
   process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test_refresh_secret';
-  process.env.MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/restrip-test';
+  process.env.MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/havenstay-test';
 } else {
   const missing = required.filter((k) => !process.env[k]);
   if (missing.length) {

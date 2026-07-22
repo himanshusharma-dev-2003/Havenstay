@@ -1,8 +1,8 @@
-# Render service definition for restrip backend
+# Render service definition for havenstay backend
 # DO NOT commit secrets here; set them via Render dashboard or API.
 services:
   - type: web
-    name: restrip-backend
+    name: havenstay-backend
     env: node
     plan: free
     branch: main
