@@ -7,7 +7,7 @@ on:
     branches: [main, master]
 
 jobs:
-  # ── Lint & Test ─────────────────────────────────────────────────
+  # ── Server Tests ────────────────────────────────────────────────
   test:
     name: Test (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
@@ -37,8 +37,17 @@ jobs:
         env:
           NODE_ENV: test
           CI: true
+          # Minimal secrets for JWT signing in auth middleware tests.
+          # These are non-sensitive test-only values — real secrets are
+          # stored in the deployment environment, not here.
+          JWT_ACCESS_SECRET: ci-test-access-secret-not-used-in-production
+          JWT_REFRESH_SECRET: ci-test-refresh-secret-not-used-in-production
+          # REDIS_URL intentionally omitted — cache service falls back
+          # gracefully and all tests mock the cache layer anyway.
+          # MONGO_URI intentionally omitted — concurrency test uses
+          # mongodb-memory-server (in-process, no external connection).
 
-  # ── Client build verification ───────────────────────────────────
+  # ── Client Build Verification ───────────────────────────────────
   build-client:
     name: Build Client
     runs-on: ubuntu-latest
