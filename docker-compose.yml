@@ -28,6 +28,30 @@ services:
         max-size: '10m'
         max-file: '3'
 
+  redis:
+    image: redis:7-alpine
+    container_name: havenstay-redis
+    restart: unless-stopped
+    # Persistence: Append-Only File mode — survives container restarts.
+    # Use 'no-appendfsync-on-rewrite yes' to avoid blocking writes during
+    # BGREWRITEAOF. For a pure cache (no persistence), remove these args.
+    command: redis-server --appendonly yes --appendfsync everysec
+    volumes:
+      - redis-data:/data
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '5m'
+        max-file: '3'
+
   api:
     build:
       context: .
@@ -37,10 +61,13 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       - MONGO_URI=mongodb://mongo:27017/havenstay
       - NODE_ENV=production
       - PORT=5000
+      - REDIS_URL=redis://redis:6379
       # Secrets — override these via a .env file or CI/CD secrets manager
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-change_me_in_production}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-change_me_in_production}
@@ -67,3 +94,6 @@ services:
 volumes:
   mongo-data:
     name: havenstay-mongo-data
+  redis-data:
+    name: havenstay-redis-data
+

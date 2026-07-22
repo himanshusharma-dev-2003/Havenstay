@@ -34,6 +34,11 @@ const config = Object.freeze({
   // ── CORS ──────────────────────────────────────────────────────────
   clientUrl: process.env.CLIENT_URL || 'http://localhost:3000',
 
+  // ── Redis ──────────────────────────────────────────────────────────
+  // Optional — if not set, the cache service silently falls back to MongoDB.
+  // Set REDIS_URL=redis://localhost:6379 for local dev with Docker Redis.
+  redisUrl: process.env.REDIS_URL || null,
+
   // ── Razorpay ──────────────────────────────────────────────────────
   razorpay: Object.freeze({
     keyId:     process.env.RAZORPAY_KEY_ID,

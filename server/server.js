@@ -10,8 +10,9 @@ const morgan       = require('morgan');
 const rateLimit    = require('express-rate-limit');
 
 const { httpLogger, logger } = require('./logger');
-const config       = require('./config');
-const errorHandler = require('./middleware/errorHandler');
+const config         = require('./config');
+const errorHandler   = require('./middleware/errorHandler');
+const { connectRedis, disconnectRedis } = require('./config/redis');
 
 const authRoutes    = require('./routes/auth');
 const hotelRoutes   = require('./routes/hotels');
@@ -119,17 +120,22 @@ module.exports = app;
 if (require.main === module) {
   const mongoose = require('mongoose');
 
-  mongoose
-    .connect(config.mongoUri)
-    .then(() => {
+  // Connect to MongoDB (required) and Redis (optional — app runs without it)
+  const bootstrap = async () => {
+    try {
+      await mongoose.connect(config.mongoUri);
       logger.info('✅ MongoDB connected');
+
+      // Redis connection is non-blocking — if it fails, the app continues
+      // and the cache service falls back to MongoDB transparently.
+      await connectRedis();
 
       const server = app.listen(config.port, () => {
         logger.info(`🚀 HavenStay API running  →  http://localhost:${config.port}`);
         logger.info(`📋 Health check           →  http://localhost:${config.port}/api/health`);
       });
 
-      // ── Graceful shutdown ────────────────────────────────────────
+      // ── Graceful shutdown ──────────────────────────────────────────
       // Allows in-flight requests to complete before the process exits.
       const shutdown = async (signal) => {
         try {
@@ -137,6 +143,7 @@ if (require.main === module) {
           server.close(() => logger.info('HTTP server closed'));
           await mongoose.disconnect();
           logger.info('MongoDB disconnected');
+          await disconnectRedis();
           process.exit(0);
         } catch (err) {
           logger.error({ err }, 'Error during graceful shutdown');
@@ -146,9 +153,11 @@ if (require.main === module) {
 
       process.on('SIGTERM', () => shutdown('SIGTERM'));
       process.on('SIGINT',  () => shutdown('SIGINT'));
-    })
-    .catch((err) => {
-      logger.error({ err }, '❌ MongoDB connection failed');
+    } catch (err) {
+      logger.error({ err }, '❌ Bootstrap failed');
       process.exit(1);
-    });
+    }
+  };
+
+  bootstrap();
 }

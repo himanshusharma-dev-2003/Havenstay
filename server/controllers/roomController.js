@@ -1,12 +1,18 @@
 const { validationResult } = require('express-validator');
-const Room  = require('../models/Room');
-const Hotel = require('../models/Hotel');
+const Room   = require('../models/Room');
+const Hotel  = require('../models/Hotel');
 const { AppError, catchAsync } = require('../utils/errors');
+const { CACHE_TTL } = require('../constants');
+const cache  = require('../services/cache.service');
+
+// ── Cache key helpers ─────────────────────────────────────────────
+const CK = {
+  roomsByHotel:  (hotelId)                  => `rooms:${hotelId}`,
+  availability:  (roomId, checkIn, checkOut) => `availability:${roomId}:${checkIn}:${checkOut}`,
+};
 
 /**
  * Generates an array of Date objects for each night in a stay range.
- * Shared utility — also exists in bookingController.js. In a larger codebase
- * this would live in utils/dateHelpers.js; kept local here for simplicity.
  *
  * @param {string|Date} checkIn  - Start date (inclusive)
  * @param {string|Date} checkOut - End date (exclusive)
@@ -28,12 +34,18 @@ const getDateRange = (checkIn, checkOut) => {
  *
  * Returns all active rooms for a hotel. When checkIn and checkOut are provided,
  * each room number is annotated with an `isAvailable` flag and the room gets a
- * top-level `hasAvailableRooms` boolean — used by the client to grey out
- * fully-booked rooms without an additional API call.
+ * top-level `hasAvailableRooms` boolean.
  *
- * @query {string}  hotelId           - Required. Hotel MongoDB ObjectId
- * @query {string}  [checkIn]         - ISO date string
- * @query {string}  [checkOut]        - ISO date string
+ * Caching strategy:
+ *   - Room list WITHOUT dates: key = rooms:{hotelId}, TTL = 300s
+ *     Cached because basic room metadata rarely changes.
+ *   - Room list WITH dates: NOT cached at this level — the availability
+ *     overlay is computed in-memory from the cached base room data.
+ *     Individual availability checks use the availability:{roomId}:…  key.
+ *
+ * @query {string}  hotelId     - Required. Hotel MongoDB ObjectId
+ * @query {string}  [checkIn]   - ISO date string
+ * @query {string}  [checkOut]  - ISO date string
  * @returns {{ success: true, data: Room[] }}
  * @throws {400} Missing hotelId
  */
@@ -41,19 +53,32 @@ exports.getRoomsByHotel = catchAsync(async (req, res, next) => {
   const { hotelId, checkIn, checkOut } = req.query;
   if (!hotelId) return next(new AppError('hotelId query param is required.', 400));
 
-  const rooms = await Room.find({ hotelId, isActive: true }).lean();
+  // Fetch base room list from cache or MongoDB
+  const cacheKey = CK.roomsByHotel(hotelId);
+  let rooms = await cache.get(cacheKey);
 
-  // Availability annotation — only performed when date params are supplied
+  if (!rooms) {
+    rooms = await Room.find({ hotelId, isActive: true }).lean();
+    await cache.set(cacheKey, rooms, CACHE_TTL.ROOMS_BY_HOTEL);
+  }
+
+  // Availability annotation is computed in-memory on the cached room data.
+  // This avoids caching date-specific variants of the room list, which would
+  // create an unbounded number of cache keys.
   if (checkIn && checkOut) {
     const requestedDates = getDateRange(checkIn, checkOut);
-    for (const room of rooms) {
-      room.roomNumbers = room.roomNumbers.map((rn) => {
-        const bookedSet    = new Set(rn.bookedDates.map((d) => new Date(d).toDateString()));
-        const isAvailable  = requestedDates.every((d) => !bookedSet.has(d.toDateString()));
+    rooms = rooms.map((room) => {
+      const annotatedNumbers = room.roomNumbers.map((rn) => {
+        const bookedSet   = new Set(rn.bookedDates.map((d) => new Date(d).toDateString()));
+        const isAvailable = requestedDates.every((d) => !bookedSet.has(d.toDateString()));
         return { ...rn, isAvailable };
       });
-      room.hasAvailableRooms = room.roomNumbers.some((rn) => rn.isAvailable);
-    }
+      return {
+        ...room,
+        roomNumbers:       annotatedNumbers,
+        hasAvailableRooms: annotatedNumbers.some((rn) => rn.isAvailable),
+      };
+    });
   }
 
   res.json({ success: true, data: rooms });
@@ -63,6 +88,9 @@ exports.getRoomsByHotel = catchAsync(async (req, res, next) => {
  * GET /api/rooms/:id
  *
  * Returns a single room with its parent hotel name and city populated.
+ * Not cached — individual room reads are low-frequency enough that
+ * the MongoDB round-trip is acceptable, and avoiding a cache layer
+ * here keeps availability data always fresh for this endpoint.
  *
  * @param {string} id - MongoDB ObjectId
  * @returns {{ success: true, data: Room }}
@@ -78,8 +106,12 @@ exports.getRoomById = catchAsync(async (req, res, next) => {
  * POST /api/rooms  [Admin]
  *
  * Creates a new room and links it to its parent hotel.
- * As a side-effect, updates the hotel's cheapestPrice if this room's
- * price is lower — keeping the hotel listing accurate without a separate update.
+ * Side-effect: updates hotel.cheapestPrice if the new room is cheaper.
+ *
+ * Cache invalidation:
+ *   - rooms:{hotelId}           — room list for this hotel
+ *   - hotel:{hotelId}           — hotel detail (now has a new room)
+ *   - hotels:* (pattern)        — listing pages show cheapestPrice
  *
  * @auth Admin
  * @body {{ hotelId, title, description, price, maxPeople, beds, roomNumbers, amenities, photos }}
@@ -105,14 +137,25 @@ exports.createRoom = catchAsync(async (req, res, next) => {
     await Hotel.findByIdAndUpdate(hotelId, { cheapestPrice: room.price });
   }
 
+  // Invalidate affected caches in parallel
+  await Promise.all([
+    cache.del(CK.roomsByHotel(hotelId)),
+    cache.del(`hotel:${hotelId}`),
+    cache.delPattern('hotels:*'),
+  ]);
+
   res.status(201).json({ success: true, data: room });
 });
 
 /**
  * PUT /api/rooms/:id  [Admin]
  *
- * Updates room metadata. Does not modify bookedDates — those are managed
- * exclusively by the booking/cancellation flow.
+ * Updates room metadata. bookedDates are managed exclusively by the
+ * booking/cancellation flow.
+ *
+ * Cache invalidation:
+ *   - rooms:{hotelId}   — room list for this hotel
+ *   - hotel:{hotelId}   — hotel detail includes rooms
  *
  * @auth Admin
  * @param {string} id - MongoDB ObjectId
@@ -127,6 +170,12 @@ exports.updateRoom = catchAsync(async (req, res, next) => {
     { new: true, runValidators: true },
   );
   if (!room) return next(new AppError('Room not found.', 404));
+
+  await Promise.all([
+    cache.del(CK.roomsByHotel(room.hotelId.toString())),
+    cache.del(`hotel:${room.hotelId}`),
+  ]);
+
   res.json({ success: true, data: room });
 });
 
@@ -136,6 +185,8 @@ exports.updateRoom = catchAsync(async (req, res, next) => {
  * Soft-deletes a room (isActive=false). Historical bookings referencing
  * this room are preserved in MongoDB.
  *
+ * Cache invalidation: same as updateRoom.
+ *
  * @auth Admin
  * @param {string} id - MongoDB ObjectId
  * @returns {{ success: true, message: string }}
@@ -144,6 +195,13 @@ exports.updateRoom = catchAsync(async (req, res, next) => {
 exports.deleteRoom = catchAsync(async (req, res, next) => {
   const room = await Room.findByIdAndUpdate(req.params.id, { isActive: false });
   if (!room) return next(new AppError('Room not found.', 404));
+
+  await Promise.all([
+    cache.del(CK.roomsByHotel(room.hotelId.toString())),
+    cache.del(`hotel:${room.hotelId}`),
+    cache.delPattern('hotels:*'),
+  ]);
+
   res.json({ success: true, message: 'Room deactivated successfully.' });
 });
 
@@ -151,12 +209,21 @@ exports.deleteRoom = catchAsync(async (req, res, next) => {
  * GET /api/rooms/:id/availability?checkIn=&checkOut=
  *
  * Returns per-room-number availability for the given date range.
- * Used by the booking form to show which physical room numbers are free.
+ *
+ * Caching strategy:
+ *   Key    : availability:{roomId}:{checkIn}:{checkOut}
+ *   TTL    : 60 seconds (1 minute)
+ *   Reason : Availability is booking-critical. We cache it for 60 seconds
+ *            to avoid hammering MongoDB when many users check the same
+ *            room simultaneously (e.g. a popular hotel). Booking creation
+ *            and cancellation events immediately invalidate this key via
+ *            delPattern('availability:{roomId}:*') so newly-booked dates
+ *            never appear available.
  *
  * @param {string} id    - Room MongoDB ObjectId
  * @query {string} checkIn
  * @query {string} checkOut
- * @returns {{ success: true, data: { roomId, hasAvailability, availability: { roomNumber, isAvailable }[] } }}
+ * @returns {{ success: true, data: { roomId, hasAvailability, availability[] } }}
  * @throws {400} Missing date params
  * @throws {404} Room not found
  */
@@ -165,6 +232,10 @@ exports.checkAvailability = catchAsync(async (req, res, next) => {
   if (!checkIn || !checkOut) {
     return next(new AppError('checkIn and checkOut query params are required.', 400));
   }
+
+  const cacheKey = CK.availability(req.params.id, checkIn, checkOut);
+  const cached   = await cache.get(cacheKey);
+  if (cached) return res.json(cached);
 
   const room = await Room.findById(req.params.id).lean();
   if (!room) return next(new AppError('Room not found.', 404));
@@ -176,12 +247,15 @@ exports.checkAvailability = catchAsync(async (req, res, next) => {
     return { roomNumber: rn.number, isAvailable };
   });
 
-  res.json({
+  const response = {
     success: true,
     data: {
       roomId:          room._id,
       hasAvailability: availability.some((a) => a.isAvailable),
       availability,
     },
-  });
+  };
+
+  await cache.set(cacheKey, response, CACHE_TTL.ROOM_AVAILABILITY);
+  res.json(response);
 });

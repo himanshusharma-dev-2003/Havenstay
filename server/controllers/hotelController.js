@@ -1,37 +1,40 @@
-const NodeCache = require('node-cache');
 const { validationResult } = require('express-validator');
-const Hotel = require('../models/Hotel');
-const Room  = require('../models/Room');
+const Hotel        = require('../models/Hotel');
+const Room         = require('../models/Room');
 const { AppError, catchAsync } = require('../utils/errors');
 const { CACHE_TTL, PAGINATION } = require('../constants');
+const cache        = require('../services/cache.service');
 
-/**
- * In-memory cache for hotel responses.
- *
- * Using node-cache (single-process, no infra requirement) for simplicity
- * in development. In a multi-instance production deployment this should be
- * replaced with a shared Redis cache to prevent cache inconsistencies between
- * pods. The interface is intentionally abstracted so the switch is a one-line
- * adapter change.
- *
- * TTL values are defined in constants/index.js for easy tuning.
- */
-const cache = new NodeCache({ stdTTL: CACHE_TTL.HOTELS_LIST, checkperiod: CACHE_TTL.CHECK_PERIOD });
+// ── Cache key helpers ─────────────────────────────────────────────
+// Centralise key construction here — if a key pattern ever needs to change,
+// there is exactly one place to update it.
+const CK = {
+  hotelList:    (query) => `hotels:${JSON.stringify(query)}`,
+  hotelDetail:  (id)    => `hotel:${id}`,
+  featured:     ()      => 'featured-hotels',
+};
 
 /**
  * GET /api/hotels
  *
  * Returns a paginated, filtered list of active hotels.
- * Cached per unique query-string for CACHE_TTL.HOTELS_LIST seconds.
  *
- * @query {string}  [city]      - Filter by city (case-insensitive partial match)
- * @query {string}  [category]  - Filter by category enum value
- * @query {boolean} [featured]  - Filter featured hotels only
- * @query {number}  [rating]    - Minimum rating (inclusive)
- * @query {number}  [minPrice]  - Minimum cheapestPrice
- * @query {number}  [maxPrice]  - Maximum cheapestPrice
- * @query {number}  [page=1]    - Page number
- * @query {number}  [limit=12]  - Items per page
+ * Caching strategy:
+ *   Key    : hotels:{JSON.stringify(queryParams)}
+ *   TTL    : 300 seconds (5 minutes)
+ *   Reason : Hotel listings are the highest-traffic endpoint. 5-minute TTL
+ *            absorbs traffic spikes. Write-through invalidation (delPattern
+ *            on any mutation) guarantees the cache never serves stale data
+ *            beyond the TTL when an admin makes changes.
+ *
+ * @query {string}  [city]         - Filter by city (case-insensitive partial match)
+ * @query {string}  [category]     - Filter by category enum value
+ * @query {boolean} [featured]     - Filter featured hotels only
+ * @query {number}  [rating]       - Minimum rating (inclusive)
+ * @query {number}  [minPrice]     - Minimum cheapestPrice
+ * @query {number}  [maxPrice]     - Maximum cheapestPrice
+ * @query {number}  [page=1]       - Page number
+ * @query {number}  [limit=12]     - Items per page
  * @query {string}  [sort=-rating] - Mongoose sort string
  *
  * @returns {{ success: true, total: number, page: number, pages: number, data: Hotel[] }}
@@ -44,11 +47,19 @@ exports.getAllHotels = catchAsync(async (req, res) => {
     sort  = '-rating',
   } = req.query;
 
-  // Cache key derived from the full query string to handle all filter combinations
-  const cacheKey = `hotels:${JSON.stringify(req.query)}`;
-  const cached = cache.get(cacheKey);
+  // Use a dedicated key for the featured-hotels hot path so it can be
+  // invalidated independently of regular listing queries.
+  const isFeaturedOnly = featured === 'true' && Object.keys(req.query).length === 1;
+  const cacheKey = isFeaturedOnly
+    ? CK.featured()
+    : CK.hotelList(req.query);
+
+  const ttl = isFeaturedOnly ? CACHE_TTL.FEATURED_HOTELS : CACHE_TTL.HOTELS_LIST;
+
+  const cached = await cache.get(cacheKey);
   if (cached) return res.json(cached);
 
+  // ── Cache miss → query MongoDB ────────────────────────────────
   const filter = { isActive: true };
   if (city)     filter.city     = new RegExp(city, 'i');
   if (category) filter.category = category;
@@ -77,7 +88,7 @@ exports.getAllHotels = catchAsync(async (req, res) => {
     data:  hotels,
   };
 
-  cache.set(cacheKey, response);
+  await cache.set(cacheKey, response, ttl);
   res.json(response);
 });
 
@@ -85,15 +96,23 @@ exports.getAllHotels = catchAsync(async (req, res) => {
  * GET /api/hotels/:id
  *
  * Returns a single hotel with its active rooms attached.
- * Cached per hotel ID for CACHE_TTL.HOTEL_DETAIL seconds.
+ *
+ * Caching strategy:
+ *   Key    : hotel:{id}
+ *   TTL    : 900 seconds (15 minutes)
+ *   Reason : Individual hotel pages are read far more than written.
+ *            15-minute TTL is aggressive enough to substantially reduce
+ *            MongoDB round-trips on popular hotels. Invalidated immediately
+ *            on hotel update, delete, or any room mutation for that hotel.
  *
  * @param {string} id - MongoDB ObjectId
  * @returns {{ success: true, data: Hotel & { rooms: Room[] } }}
  * @throws {404} Hotel not found
  */
 exports.getHotelById = catchAsync(async (req, res, next) => {
-  const cacheKey = `hotel:${req.params.id}`;
-  const cached = cache.get(cacheKey);
+  const cacheKey = CK.hotelDetail(req.params.id);
+
+  const cached = await cache.get(cacheKey);
   if (cached) return res.json(cached);
 
   const hotel = await Hotel.findById(req.params.id).lean();
@@ -101,20 +120,25 @@ exports.getHotelById = catchAsync(async (req, res, next) => {
 
   // Fetch rooms separately — the virtual populate on Hotel model can also do
   // this, but explicit fetching gives us the isActive filter in one query.
-  const rooms = await Room.find({ hotelId: hotel._id, isActive: true }).lean();
+  const rooms    = await Room.find({ hotelId: hotel._id, isActive: true }).lean();
   const response = { success: true, data: { ...hotel, rooms } };
 
-  cache.set(cacheKey, response, CACHE_TTL.HOTEL_DETAIL);
+  await cache.set(cacheKey, response, CACHE_TTL.HOTEL_DETAIL);
   res.json(response);
 });
 
 /**
  * POST /api/hotels  [Admin]
  *
- * Creates a new hotel. Validates request body via express-validator rules
- * defined in the route file. Flushes the hotel listing cache on success.
+ * Creates a new hotel.
  *
- * @body {object} hotel data (name, city, country, address, description, cheapestPrice, ...)
+ * Cache invalidation:
+ *   - All hotel listing patterns (hotels:*) are cleared so the new hotel
+ *     appears immediately in every listing query.
+ *   - featured-hotels key is cleared separately because its key sits outside
+ *     the hotels:* pattern.
+ *
+ * @body {object} hotel data (name, city, country, address, description, cheapestPrice, …)
  * @returns {{ success: true, data: Hotel }}
  * @throws {400} Validation errors
  */
@@ -126,15 +150,25 @@ exports.createHotel = catchAsync(async (req, res, next) => {
   }
 
   const hotel = await Hotel.create(req.body);
-  cache.flushAll(); // Invalidate listing cache so new hotel appears immediately
+
+  // Invalidate listing caches — new hotel must appear immediately
+  await Promise.all([
+    cache.delPattern('hotels:*'),
+    cache.del(CK.featured()),
+  ]);
+
   res.status(201).json({ success: true, data: hotel });
 });
 
 /**
  * PUT /api/hotels/:id  [Admin]
  *
- * Updates an existing hotel. Runs Mongoose validators on the update.
- * Flushes entire hotel cache on success.
+ * Updates an existing hotel.
+ *
+ * Cache invalidation:
+ *   - The specific hotel:id key is deleted (detail page)
+ *   - All hotel listing patterns are cleared (listing pages)
+ *   - featured-hotels is cleared (may affect featured listing)
  *
  * @param {string} id - MongoDB ObjectId
  * @body {Partial<Hotel>} Fields to update
@@ -148,7 +182,14 @@ exports.updateHotel = catchAsync(async (req, res, next) => {
     { new: true, runValidators: true },
   );
   if (!hotel) return next(new AppError('Hotel not found.', 404));
-  cache.flushAll();
+
+  // Targeted + listing invalidation in parallel
+  await Promise.all([
+    cache.del(CK.hotelDetail(req.params.id)),
+    cache.delPattern('hotels:*'),
+    cache.del(CK.featured()),
+  ]);
+
   res.json({ success: true, data: hotel });
 });
 
@@ -158,6 +199,9 @@ exports.updateHotel = catchAsync(async (req, res, next) => {
  * Soft-deletes a hotel by setting isActive=false.
  * The hotel record is retained in MongoDB for historical booking references.
  *
+ * Cache invalidation: same as updateHotel — the hotel must disappear from
+ * all listing pages immediately.
+ *
  * @param {string} id - MongoDB ObjectId
  * @returns {{ success: true, message: string }}
  * @throws {404} Hotel not found
@@ -165,6 +209,12 @@ exports.updateHotel = catchAsync(async (req, res, next) => {
 exports.deleteHotel = catchAsync(async (req, res, next) => {
   const hotel = await Hotel.findByIdAndUpdate(req.params.id, { isActive: false });
   if (!hotel) return next(new AppError('Hotel not found.', 404));
-  cache.flushAll();
+
+  await Promise.all([
+    cache.del(CK.hotelDetail(req.params.id)),
+    cache.delPattern('hotels:*'),
+    cache.del(CK.featured()),
+  ]);
+
   res.json({ success: true, message: 'Hotel deactivated successfully.' });
 });

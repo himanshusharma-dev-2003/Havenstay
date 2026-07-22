@@ -10,7 +10,7 @@
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248.svg?logo=mongodb&logoColor=white)](https://mongodb.com)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-**Secure authentication · Real-time booking management · Concurrency-safe reservations · Dockerized deployment · Scalable REST API**
+**Secure authentication · Real-time booking management · Concurrency-safe reservations · Redis caching · Dockerized deployment · Scalable REST API**
 
 [Live Demo](https://client-frn6kczqo-friedrick2003s-projects.vercel.app) · [API Health](https://havenstay-backend-production.up.railway.app/api/health) · [Report Bug](https://github.com/himanshu/havenstay/issues/new?template=bug_report.md) · [Request Feature](https://github.com/himanshu/havenstay/issues/new?template=feature_request.md)
 
@@ -98,7 +98,7 @@ Pino JSON logger with per-request IDs (`X-Request-Id` header) for distributed tr
 | **Database**   | MongoDB 6, Mongoose 8 (Atlas in production)         |
 | **Auth**       | JWT (dual-token), bcryptjs, httpOnly cookies        |
 | **Payments**   | Razorpay (order creation + HMAC signature verify)   |
-| **Caching**    | node-cache (in-process, Redis-ready interface)      |
+| **Caching**    | Redis 7 (`redis` v4) · fault-tolerant cache service · SCAN-based invalidation |
 | **Logging**    | Pino + pino-http (structured JSON)                  |
 | **Security**   | Helmet, CORS, express-rate-limit, input validation  |
 | **DevOps**     | Docker, docker-compose, GitHub Actions CI           |
@@ -133,8 +133,8 @@ Pino JSON logger with per-request IDs (`X-Request-Id` header) for distributed tr
 │  └───────────────────────┬───────────────────────────┘ │
 │                           │                             │
 │  ┌─────────┐  ┌──────────▼──────────┐  ┌───────────┐  │
-│  │  Cache  │  │   Mongoose Models    │  │ Razorpay  │  │
-│  │node-cache│  │ User·Hotel·Room·     │  │  Payment  │  │
+│  │  Cache     │  │   Mongoose Models    │  │ Razorpay  │  │
+│  │  Redis 7   │  │ User·Hotel·Room·     │  │  Payment  │  │
 │  └─────────┘  │     Booking          │  │ Gateway   │  │
 │               └──────────┬──────────┘  └───────────┘  │
 └──────────────────────────┼─────────────────────────────┘
@@ -171,9 +171,12 @@ havenstay/
 │
 ├── server/                         # Node.js + Express REST API
 │   ├── config/
-│   │   └── index.js                # ✦ Centralised env config (single source of truth)
+│   │   ├── index.js                # ✦ Centralised env config (single source of truth)
+│   │   └── redis.js                # ✦ Redis client (auto-reconnect, Pino logging, graceful quit)
 │   ├── constants/
-│   │   └── index.js                # ✦ Shared enums + magic-number replacements
+│   │   └── index.js                # ✦ Shared enums + TTL constants with rationale
+│   ├── services/
+│   │   └── cache.service.js        # ✦ Redis abstraction — get/set/del/delPattern/getOrSet
 │   ├── controllers/                # Route handler logic (thin HTTP layer)
 │   │   ├── authController.js
 │   │   ├── bookingController.js    # ✦ Concurrency-safe atomic booking logic
@@ -411,9 +414,11 @@ docker-compose logs -f api
 docker-compose down -v
 ```
 
-The API will be available at `http://localhost:5000`. MongoDB data is persisted in a Docker named volume (`havenstay-mongo-data`).
+The API will be available at `http://localhost:5000`. MongoDB data is persisted in a Docker named volume (`havenstay-mongo-data`). Redis data is persisted in `havenstay-redis-data`.
 
 > **Production note:** Override JWT secrets via environment variables or a `.env` file before deploying. The docker-compose defaults are for local development only.
+
+> **Without Docker:** If you don't want to run Docker, set `REDIS_URL` to a cloud Redis instance or simply omit it — the app will fall back to MongoDB for all reads automatically.
 
 ---
 
@@ -495,8 +500,32 @@ Compound indexes: { userId, createdAt }, { hotelId, status }, { checkIn, checkOu
 
 ## 🧠 Design Decisions
 
-### Why node-cache instead of Redis?
-Redis requires infrastructure (a running Redis server). node-cache provides equivalent in-process caching with zero setup for development. The caching interface is intentionally simple (`.get()` / `.set()` / `.flushAll()`) so swapping to a Redis adapter in production is a single-file change.
+### Why Redis instead of node-cache?
+`node-cache` is an in-process store — each API pod has its own isolated cache. In a multi-instance deployment (e.g. Railway with 2+ replicas, or a load-balanced setup) this causes **cache inconsistency**: one pod may invalidate a hotel's cache while another pod still serves stale data from its own in-memory store. Redis is a shared, external store that all pods connect to, solving this correctly.
+
+The `CacheService` abstraction (`services/cache.service.js`) wraps every Redis operation in fault-tolerant try/catch. If Redis is unreachable:
+- Every `get()` returns `null` (cache miss → falls through to MongoDB)
+- Every `set()` / `del()` silently no-ops and logs a warning
+- **The API continues serving all requests normally**
+
+### Caching strategy and TTL rationale
+
+| Cache Key | TTL | Reasoning |
+|-----------|-----|-----------|
+| `havenstay:hotels:{query}` | 5 min | Listing endpoint — most-read path. Invalidated on any hotel mutation. |
+| `havenstay:hotel:{id}` | 15 min | Single hotel rarely changes. Invalidated on hotel or room update. |
+| `havenstay:featured-hotels` | 10 min | Homepage hot-path. Separate key so it can be targeted independently. |
+| `havenstay:rooms:{hotelId}` | 5 min | Room list metadata (no dates). Invalidated on room CRUD. |
+| `havenstay:availability:{roomId}:{in}:{out}` | 60 sec | Booking-critical — must be near-real-time. Invalidated immediately on booking create/cancel. |
+
+### Why SCAN instead of KEYS * for pattern invalidation?
+`KEYS *` blocks the Redis event loop for the duration of the scan — in production with thousands of keys this can cause latency spikes or timeouts for all other operations. `SCAN` iterates in configurable batches (100 keys per call here) and yields between iterations, making it safe under any load.
+
+### Why a CacheService layer instead of using Redis directly in controllers?
+Controllers import `cache.service.js` and call `cache.get('hotel:123')` — they have no knowledge of Redis internals. This means:
+- Swapping Redis for Memcached or a different client requires only one file change
+- Testing is trivial — mock the service module, not the Redis client
+- The fallback behaviour (Redis down → return null → MongoDB query) is centralised and consistent
 
 ### Why soft deletes?
 Historical bookings reference hotels and rooms by ID. Hard-deleting a hotel would orphan existing booking records and break booking history pages. Soft deletes (`isActive: false`) preserve referential integrity.
@@ -518,7 +547,6 @@ Ranked by impact:
 
 | Priority | Improvement | Rationale |
 |----------|-------------|-----------|
-| High | **Redis cache** | Replace node-cache for multi-instance deployment support |
 | High | **OpenAPI/Swagger spec** | Machine-readable API documentation |
 | High | **End-to-end tests** (Playwright) | Booking flow regression coverage |
 | Medium | **Elasticsearch** for hotel search | Full-text search with typo tolerance |

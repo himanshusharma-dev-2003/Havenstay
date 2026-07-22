@@ -6,6 +6,7 @@ const Hotel    = require('../models/Hotel');
 const { AppError, catchAsync } = require('../utils/errors');
 const { TAX_RATE, BOOKING_STATUS, PAGINATION } = require('../constants');
 const config   = require('../config');
+const cache    = require('../services/cache.service');
 const Razorpay = require('razorpay');
 const crypto   = require('crypto');
 
@@ -125,6 +126,12 @@ exports.createBooking = catchAsync(async (req, res, next) => {
   if (!updated) {
     return next(new AppError('Booking conflict: those dates were just taken. Please try again.', 409));
   }
+
+  // ── Step 3b: Invalidate availability cache ────────────────────────
+  // Dates have been atomically claimed — any cached availability check
+  // for this room must be cleared immediately so other users see the
+  // updated availability on their next request.
+  await cache.delPattern(`availability:${roomId}:*`);
 
   // ── Step 4: Calculate price ───────────────────────────────────────
   const subtotal   = room.price * nights;
@@ -336,6 +343,10 @@ exports.cancelBooking = catchAsync(async (req, res, next) => {
   booking.cancellationReason = req.body.reason || 'Cancelled by user';
   booking.cancelledAt        = new Date();
   await booking.save();
+
+  // Invalidate availability cache — dates are now free again, so any cached
+  // "unavailable" response for this room must be cleared immediately.
+  await cache.delPattern(`availability:${booking.roomId}:*`);
 
   res.json({ success: true, message: 'Booking cancelled and dates released.', data: booking });
 });
