@@ -81,6 +81,7 @@ const apiLimiter = rateLimit({
 });
 
 app.use('/api/auth', authLimiter);
+app.use('/auth',     authLimiter);
 app.use('/api',      apiLimiter);
 
 // ── Routes ────────────────────────────────────────────────────────
@@ -89,9 +90,15 @@ app.use('/api/hotels',   hotelRoutes);
 app.use('/api/rooms',    roomRoutes);
 app.use('/api/bookings', bookingRoutes);
 
+// Fallback aliases without /api prefix (handles direct calls or legacy clients)
+app.use('/auth',     authRoutes);
+app.use('/hotels',   hotelRoutes);
+app.use('/rooms',    roomRoutes);
+app.use('/bookings', bookingRoutes);
+
 // ── Health check ──────────────────────────────────────────────────
 // Simple liveness probe — used by Docker HEALTHCHECK and cloud platform monitors.
-app.get('/api/health', (req, res) => {
+app.get(['/api/health', '/health'], (req, res) => {
   res.json({
     success:     true,
     status:      'OK',

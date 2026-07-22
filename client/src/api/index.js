@@ -1,4 +1,18 @@
-const BASE_URL = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : "https://havenstay-backend-production.up.railway.app/api");
+const getBaseUrl = () => {
+  const envUrl = process.env.REACT_APP_API_URL;
+  let url = envUrl || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : 'https://havenstay-backend-production.up.railway.app/api');
+  
+  // Remove trailing slashes
+  url = url.replace(/\/+$/, '');
+  
+  // Ensure /api suffix exists
+  if (!url.endsWith('/api')) {
+    url = `${url}/api`;
+  }
+  return url;
+};
+
+const BASE_URL = getBaseUrl();
 
 // Cookie-based auth: all requests include credentials. Do not rely on client-stored access tokens.
 async function refreshAccessToken() {
