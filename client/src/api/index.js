@@ -14,31 +14,63 @@ const getBaseUrl = () => {
 
 const BASE_URL = getBaseUrl();
 
-// Cookie-based auth: all requests include credentials. Do not rely on client-stored access tokens.
+// ── Token helpers (localStorage) ─────────────────────────────────────
+// Using localStorage as a fallback to httpOnly cookies.
+// This ensures cross-origin deployments (Vercel frontend + Railway backend) work
+// even when browsers block third-party SameSite cookies.
+export const tokenStore = {
+  get:    ()      => localStorage.getItem('hs_access_token'),
+  set:    (token) => localStorage.setItem('hs_access_token', token),
+  clear:  ()      => localStorage.removeItem('hs_access_token'),
+};
+
+// ── Refresh using the refresh-token cookie ────────────────────────────
 async function refreshAccessToken() {
   try {
     const res = await fetch(`${BASE_URL}/auth/refresh`, { method: "POST", credentials: "include" });
     if (!res.ok) return false;
+    const data = await res.json();
+    // Store the new access token if returned in body
+    if (data.accessToken) tokenStore.set(data.accessToken);
     return true;
-  } catch (err) {
+  } catch {
     return false;
   }
 }
 
+// ── Core request helper ───────────────────────────────────────────────
 async function request(endpoint, options = {}) {
-  const headers = { "Content-Type": "application/json", ...options.headers };
+  // Attach token from localStorage as Bearer header (cross-origin safe)
+  const token = tokenStore.get();
+  const headers = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  };
 
-  const res = await fetch(`${BASE_URL}${endpoint}`, { ...options, headers, credentials: "include" });
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+    credentials: "include",   // still send cookies if browser allows it
+  });
 
-  if (res.status === 401 && endpoint !== "/auth/refresh" && endpoint !== "/auth/login") {
+  // Auto-refresh on 401 (but not for auth endpoints themselves)
+  if (res.status === 401 && endpoint !== "/auth/refresh" && endpoint !== "/auth/login" && endpoint !== "/auth/register") {
     const ok = await refreshAccessToken();
     if (ok) {
-      // retry original request after refresh (cookies set by server)
-      const retry = await fetch(`${BASE_URL}${endpoint}`, { ...options, headers, credentials: "include" });
+      // Retry with the new token
+      const newToken = tokenStore.get();
+      const retryHeaders = {
+        "Content-Type": "application/json",
+        ...(newToken ? { Authorization: `Bearer ${newToken}` } : {}),
+        ...options.headers,
+      };
+      const retry = await fetch(`${BASE_URL}${endpoint}`, { ...options, headers: retryHeaders, credentials: "include" });
       const data  = await retry.json();
       if (!retry.ok) throw new Error(data.message || "Request failed");
       return data;
     }
+    tokenStore.clear();
     throw new Error("Session expired. Please log in again.");
   }
 
@@ -75,11 +107,11 @@ export const roomsAPI = {
     const p = new URLSearchParams({ hotelId, ...(checkIn && { checkIn }), ...(checkOut && { checkOut }) });
     return request(`/rooms?${p}`);
   },
-  getById:          (id)              => request(`/rooms/${id}`),
-  checkAvailability:(id, ci, co)      => request(`/rooms/${id}/availability?checkIn=${ci}&checkOut=${co}`),
-  create:           (data)            => request("/rooms",      { method: "POST",   body: JSON.stringify(data) }),
-  update:           (id, data)        => request(`/rooms/${id}`,{ method: "PUT",    body: JSON.stringify(data) }),
-  delete:           (id)              => request(`/rooms/${id}`,{ method: "DELETE" }),
+  getById:          (id)         => request(`/rooms/${id}`),
+  checkAvailability:(id, ci, co) => request(`/rooms/${id}/availability?checkIn=${ci}&checkOut=${co}`),
+  create:           (data)       => request("/rooms",      { method: "POST",   body: JSON.stringify(data) }),
+  update:           (id, data)   => request(`/rooms/${id}`,{ method: "PUT",    body: JSON.stringify(data) }),
+  delete:           (id)         => request(`/rooms/${id}`,{ method: "DELETE" }),
 };
 
 export const bookingsAPI = {
@@ -89,8 +121,8 @@ export const bookingsAPI = {
     const qs = new URLSearchParams(params).toString();
     return request(`/bookings/my${qs ? "?" + qs : ""}`);
   },
-  getById: (id)          => request(`/bookings/${id}`),
-  cancel:  (id, reason)  => request(`/bookings/${id}/cancel`, { method: "PATCH", body: JSON.stringify({ reason }) }),
+  getById: (id)         => request(`/bookings/${id}`),
+  cancel:  (id, reason) => request(`/bookings/${id}/cancel`, { method: "PATCH", body: JSON.stringify({ reason }) }),
   verifyPayment: (id, data) => request(`/bookings/${id}/verify-payment`, { method: "POST", body: JSON.stringify(data) }),
   getAll:  (params = {}) => {
     const qs = new URLSearchParams(params).toString();

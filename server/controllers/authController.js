@@ -69,6 +69,7 @@ exports.register = catchAsync(async (req, res, next) => {
   res.status(201).json({
     success: true,
     message: 'Account created successfully.',
+    accessToken,
     user:    { id: user._id, name: user.name, email: user.email, role: user.role },
   });
 });
@@ -116,6 +117,7 @@ exports.login = catchAsync(async (req, res, next) => {
   res.json({
     success: true,
     message: 'Logged in successfully.',
+    accessToken,
     user:    { id: user._id, name: user.name, email: user.email, role: user.role },
   });
 });
@@ -158,7 +160,7 @@ exports.refreshToken = catchAsync(async (req, res, next) => {
   res.cookie('accessToken',  newAccessToken,  ACCESS_COOKIE_OPTIONS);
   res.cookie('refreshToken', newRefreshToken, REFRESH_COOKIE_OPTIONS);
 
-  res.json({ success: true });
+  res.json({ success: true, accessToken: newAccessToken });
 });
 
 /**

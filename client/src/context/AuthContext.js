@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { authAPI } from "../api";
+import { authAPI, tokenStore } from "../api";
 
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
@@ -8,16 +8,20 @@ export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // On mount: try to restore session via refresh token cookie
+  // On mount: try to restore session using stored access token
   useEffect(() => {
     (async () => {
       try {
-        const data = await authAPI.getMe();
-        if (data && data.user) {
-          setUser(data.user);
+        // Only attempt restore if we have a stored token
+        if (tokenStore.get()) {
+          const data = await authAPI.getMe();
+          if (data && data.user) {
+            setUser(data.user);
+          }
         }
       } catch {
-        // no valid session — that's fine
+        // Token invalid or expired — clear it
+        tokenStore.clear();
       } finally {
         setLoading(false);
       }
@@ -25,22 +29,26 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
-    await authAPI.login(email, password);
-    // server sets httpOnly cookies; fetch current user
-    const data = await authAPI.getMe();
-    setUser(data.user);
+    const data = await authAPI.login(email, password);
+    // Store access token from response body
+    if (data.accessToken) tokenStore.set(data.accessToken);
+    // Use the user returned directly from login — no extra /me call needed
+    const userData = data.user || (await authAPI.getMe()).user;
+    setUser(userData);
     return data;
   };
 
   const register = async (name, email, password) => {
-    await authAPI.register(name, email, password);
-    const data = await authAPI.getMe();
-    setUser(data.user);
+    const data = await authAPI.register(name, email, password);
+    if (data.accessToken) tokenStore.set(data.accessToken);
+    const userData = data.user || (await authAPI.getMe()).user;
+    setUser(userData);
     return data;
   };
 
   const logout = async () => {
     try { await authAPI.logout(); } catch {}
+    tokenStore.clear();
     setUser(null);
   };
 
