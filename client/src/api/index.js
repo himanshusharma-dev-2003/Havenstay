@@ -86,6 +86,8 @@ export const authAPI = {
     request("/auth/register", { method: "POST", body: JSON.stringify({ name, email, password }) }),
   login: (email, password) =>
     request("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+  googleLogin: (credential) =>
+    request("/auth/google", { method: "POST", body: JSON.stringify({ credential }) }),
   logout: () =>
     request("/auth/logout", { method: "POST" }),
   getMe: () => request("/auth/me"),

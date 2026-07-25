@@ -21,6 +21,7 @@ const loginSchema = Joi.object({
 
 router.post("/register", validateBody(registerSchema), ctrl.register);
 router.post("/login",    validateBody(loginSchema),    ctrl.login);
+router.post("/google",   ctrl.googleLogin);
 router.post("/refresh",                 ctrl.refreshToken);
 router.post("/logout",   verifyToken,   ctrl.logout);
 router.get( "/me",       verifyToken,   ctrl.getMe);

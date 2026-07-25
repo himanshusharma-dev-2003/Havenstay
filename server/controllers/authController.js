@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
 const { validationResult } = require('express-validator');
 const User   = require('../models/User');
 const { AppError, catchAsync } = require('../utils/errors');
@@ -197,4 +198,83 @@ exports.getMe = catchAsync(async (req, res, next) => {
   const user = await User.findById(req.user.id);
   if (!user) return next(new AppError('User not found.', 404));
   res.json({ success: true, user });
+});
+
+/**
+ * POST /api/auth/google
+ *
+ * Authenticates or registers a user via Google OAuth 2.0.
+ *
+ * @body {{ credential: string }}
+ * @returns {{ success: true, user: User, accessToken: string }}
+ */
+exports.googleLogin = catchAsync(async (req, res, next) => {
+  const { credential } = req.body;
+  if (!credential) {
+    return next(new AppError('No Google credential provided.', 400));
+  }
+
+  const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+  
+  let payload;
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    payload = ticket.getPayload();
+  } catch (error) {
+    return next(new AppError('Invalid Google credential.', 401));
+  }
+
+  const { sub: googleId, email, name, picture: avatar, email_verified } = payload;
+  
+  if (!email) {
+    return next(new AppError('Google account does not have an email address.', 400));
+  }
+
+  // Find user by email
+  let user = await User.findOne({ email: email.trim().toLowerCase() });
+  
+  if (user) {
+    // If the user exists but is a local user, optionally link the account or just let them login
+    if (user.provider !== 'google') {
+      user.provider = 'google';
+      user.googleId = googleId;
+      if (!user.avatar && avatar) user.avatar = avatar;
+      user.emailVerified = email_verified || user.emailVerified;
+    }
+  } else {
+    // Create new Google user
+    user = await User.create({
+      name,
+      email: email.trim().toLowerCase(),
+      provider: 'google',
+      googleId,
+      avatar,
+      emailVerified: email_verified || false,
+      // No password needed for google provider
+    });
+  }
+
+  if (!user.isActive) {
+    return next(new AppError('Account is disabled.', 403));
+  }
+
+  const accessToken  = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+
+  user.refreshTokenHash = await bcrypt.hash(refreshToken, 10);
+  user.lastLogin        = new Date();
+  await user.save({ validateBeforeSave: false });
+
+  res.cookie('accessToken',  accessToken,  ACCESS_COOKIE_OPTIONS);
+  res.cookie('refreshToken', refreshToken, REFRESH_COOKIE_OPTIONS);
+
+  res.json({
+    success: true,
+    message: 'Logged in with Google successfully.',
+    accessToken,
+    user: { id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar },
+  });
 });

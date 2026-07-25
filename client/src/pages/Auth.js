@@ -2,9 +2,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { GoogleLogin } from "@react-oauth/google";
 
 export function AuthPage() {
-  const { login, register } = useAuth();
+  const { login, register, googleLogin } = useAuth();
   const navigate = useNavigate();
   const [mode,  setMode]  = useState("login");
   const [form,  setForm]  = useState({ name:"", email:"", password:"" });
@@ -56,6 +57,34 @@ export function AuthPage() {
           <button className="btn-primary" style={{ width:"100%", padding:16, marginTop:8 }} disabled={busy} onClick={handle}>
             {busy ? "Please wait..." : mode==="login" ? "Sign In" : "Create Account"}
           </button>
+          
+          <div style={{ display:"flex", alignItems:"center", margin:"24px 0" }}>
+            <div style={{ flex:1, height:1, background:"var(--color-border)" }} />
+            <div style={{ padding:"0 12px", fontSize:11, color:"var(--color-text-muted)", letterSpacing:2, textTransform:"uppercase" }}>or</div>
+            <div style={{ flex:1, height:1, background:"var(--color-border)" }} />
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <GoogleLogin
+              onSuccess={async (credentialResponse) => {
+                setError(""); setBusy(true);
+                try {
+                  await googleLogin(credentialResponse.credential);
+                  navigate("/");
+                } catch (err) {
+                  setError(err.message);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              onError={() => {
+                setError("Google Login Failed");
+              }}
+              theme="filled_black"
+              text={mode === "login" ? "signin_with" : "signup_with"}
+            />
+          </div>
+
           <p style={{ textAlign:"center", marginTop:20, fontSize:12, color:"var(--color-text-muted)" }}>
             {mode==="login" ? "New to HavenStay? " : "Already a member? "}
             <span onClick={() => { setMode(m => m==="login"?"register":"login"); setError(""); }}

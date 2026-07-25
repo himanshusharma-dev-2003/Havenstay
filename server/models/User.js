@@ -21,7 +21,12 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
+      required: [
+        function () {
+          return this.provider === "local";
+        },
+        "Password is required for local accounts",
+      ],
       minlength: [6, "Password must be at least 6 characters"],
       select: false, // never return password in queries
     },
@@ -29,6 +34,23 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["user", "admin"],
       default: "user",
+    },
+    provider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
+    },
+    googleId: {
+      type: String,
+      sparse: true,
+      unique: true,
+    },
+    avatar: {
+      type: String,
+    },
+    emailVerified: {
+      type: Boolean,
+      default: false,
     },
     refreshTokenHash: {
       type: String,
