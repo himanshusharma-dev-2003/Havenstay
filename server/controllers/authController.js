@@ -16,14 +16,14 @@ const config = require('../config');
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
   secure:   config.isProd,
-  sameSite: 'strict',
+  sameSite: config.isProd ? 'none' : 'lax',
   maxAge:   AUTH.REFRESH_COOKIE_MAX_AGE,
 };
 
 const ACCESS_COOKIE_OPTIONS = {
   httpOnly: true,
   secure:   config.isProd,
-  sameSite: 'strict',
+  sameSite: config.isProd ? 'none' : 'lax',
   maxAge:   AUTH.ACCESS_COOKIE_MAX_AGE,
 };
 
@@ -48,7 +48,7 @@ exports.register = catchAsync(async (req, res, next) => {
 
   const { name, email, password } = req.body;
 
-  const existing = await User.findOne({ email: email.toLowerCase() });
+  const existing = await User.findOne({ email: email.trim().toLowerCase() });
   if (existing) {
     return next(new AppError('An account with this email already exists.', 409));
   }
@@ -95,7 +95,7 @@ exports.login = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
   // Explicitly select +password — field is excluded by default for security
-  const user = await User.findOne({ email: email.toLowerCase(), isActive: true })
+  const user = await User.findOne({ email: email.trim().toLowerCase(), isActive: true })
     .select('+password +refreshTokenHash');
 
   // Constant-time comparison via bcrypt prevents timing attacks
