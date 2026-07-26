@@ -214,6 +214,13 @@ exports.googleLogin = catchAsync(async (req, res, next) => {
     return next(new AppError('No Google credential provided.', 400));
   }
 
+  // Guard: GOOGLE_CLIENT_ID must be set in the server environment (Railway/Render/etc.)
+  // If missing, verifyIdToken will always fail with "Invalid Google credential."
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    console.error('[Google OAuth] GOOGLE_CLIENT_ID environment variable is not set on the server.');
+    return next(new AppError('Google login is not configured on the server.', 500));
+  }
+
   const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
   
   let payload;
@@ -224,6 +231,8 @@ exports.googleLogin = catchAsync(async (req, res, next) => {
     });
     payload = ticket.getPayload();
   } catch (error) {
+    // Log the real Google error so it shows up in Railway/Render logs
+    console.error('[Google OAuth] Token verification failed:', error.message);
     return next(new AppError('Invalid Google credential.', 401));
   }
 

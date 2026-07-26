@@ -1,6 +1,6 @@
 const getBaseUrl = () => {
   const envUrl = process.env.REACT_APP_API_URL;
-  let url = envUrl || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : 'https://havenstay-backend-production.up.railway.app/api');
+  let url = envUrl || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : 'https://havenstay-backend.onrender.com/api');
   
   // Remove trailing slashes
   url = url.replace(/\/+$/, '');
