@@ -34,10 +34,6 @@ export function AuthPage() {
             <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:42, fontWeight:600, color:"#d4af6a", lineHeight:1 }}>{mode==="login"?"Back.":"Today."}</div>
             <p style={{ color:"var(--color-text-muted)", fontSize:13, marginTop:14 }}>{mode==="login"?"Sign in to access your reservations.":"Create your account for curated luxury experiences."}</p>
           </div>
-          <div style={{ background:"rgba(184,148,63,0.08)", border:"1px solid var(--color-border)", padding:"12px 16px", marginBottom:24, fontSize:12, color:"#b8943f" }}>
-            <strong>Demo admin:</strong> admin@havenstay.com / Admin@123<br />
-            <strong>Demo user:</strong> demo@havenstay.com / Demo@1234
-          </div>
           {mode==="register" && (
             <div style={{ marginBottom:16 }}>
               <div style={{ fontSize:9, letterSpacing:2.5, color:"#b8943f", textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>Full Name</div>
